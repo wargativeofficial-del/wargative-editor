@@ -128,37 +128,37 @@
             <span class="category-label">Social media</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=1080&h=1920&name=Video%20Reels%20Story'" title="Video Story/Reel (1080x1920)">
+          <button class="category-item" data-create-w="1080" data-create-h="1920" data-create-name="Video Reels Story" title="Video Story/Reel (1080x1920)">
             <div class="category-icon-box bg-video">🎥</div>
             <span class="category-label">Video</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=794&h=1123&name=Print%20A4%20Layout'" title="Print A4 (794x1123)">
+          <button class="category-item" data-create-w="794" data-create-h="1123" data-create-name="Print A4 Layout" title="Print A4 (794x1123)">
             <div class="category-icon-box bg-print">🖨️</div>
             <span class="category-label">Print</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=794&h=1123&name=Digital%20Doc%20A4'" title="Doc (794x1123)">
+          <button class="category-item" data-create-w="794" data-create-h="1123" data-create-name="Digital Doc A4" title="Doc (794x1123)">
             <div class="category-icon-box bg-doc">📄</div>
             <span class="category-label">Doc</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=1920&h=1080&name=Whiteboard%20Infinite'" title="Whiteboard (1920x1080)">
+          <button class="category-item" data-create-w="1920" data-create-h="1080" data-create-name="Whiteboard Infinite" title="Whiteboard (1920x1080)">
             <div class="category-icon-box bg-whiteboard">📋</div>
             <span class="category-label">Whiteboard</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=1920&h=1080&name=Spreadsheet%20Layout'" title="Sheet (1920x1080)">
+          <button class="category-item" data-create-w="1920" data-create-h="1080" data-create-name="Spreadsheet Layout" title="Sheet (1920x1080)">
             <div class="category-icon-box bg-sheet">📊</div>
             <span class="category-label">Sheet</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=1920&h=1080&name=Code%20Snippet%20Canvas'" title="Code Graphic (1920x1080)">
+          <button class="category-item" data-create-w="1920" data-create-h="1080" data-create-name="Code Snippet Canvas" title="Code Graphic (1920x1080)">
             <div class="category-icon-box bg-code">💻</div>
             <span class="category-label">Code</span>
           </button>
 
-          <button class="category-item" onclick="window.location.href='./index.html?w=1440&h=900&name=Website%20Mockup'" title="Website (1440x900)">
+          <button class="category-item" data-create-w="1440" data-create-h="900" data-create-name="Website Mockup" title="Website (1440x900)">
             <div class="category-icon-box bg-website">🌐</div>
             <span class="category-label">Website</span>
           </button>
@@ -184,120 +184,138 @@
       <section class="content-section" id="projects">
         <div class="section-header">
           <h2 class="section-title">Continue designing</h2>
-          <a href="./index.html" class="see-all-link">Open Studio &rarr;</a>
+          <a href="javascript:void(0)" class="see-all-link" id="btnSeeAll">See all</a>
         </div>
 
-        <div class="designs-grid">
-          <!-- Card 1: Marketing Ad Campaign (Active CE.SDK Scene) -->
-          <a href="./index.html?template=marketing-ad" class="design-card" title="Open Marketing Ad Campaign in Wargative Studio">
-            <div class="card-thumbnail" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%);">
-              <div class="thumbnail-placeholder">
-                <span style="font-size: 32px;">🛍️</span>
-                <span>Marketing Ad (4:5)</span>
-              </div>
-              <div class="card-badge"><span>📸</span> Instagram</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">Copy of Sahabat Film</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#e11d48;"></span> Instagram Post (4:5) • Edited 3 hours ago
-              </span>
-            </div>
-          </a>
+        <!-- Dynamic Grid populated from projectStore with Canva 3-dots menus -->
+        <div class="designs-grid" id="designsGrid"></div>
 
-          <!-- Card 2: Minimal Silver Device Frame (1920x1080) -->
-          <a href="./index.html?w=1920&h=1080&name=ini%20hasil%20setelah%20gue%20pencet" class="design-card" title="Open Presentation 1920x1080">
-            <div class="card-thumbnail" style="background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);">
-              <div class="thumbnail-placeholder" style="color: #334155;">
-                <span style="font-size: 32px;">💻</span>
-                <span>MacBook Mockup</span>
-              </div>
-              <div class="card-badge"><span>🖥️</span> Presentation</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">ini hasil setelah gue pencet...</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#3b82f6;"></span> 1920 x 1080 px • Edited 11 hours ago
-              </span>
-            </div>
-          </a>
-
-          <!-- Card 3: Dark Mode Instagram Post (1080x1080) -->
-          <a href="./index.html?w=1080&h=1080&name=Untitled%20Design" class="design-card" title="Open Square 1080x1080">
-            <div class="card-thumbnail" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);">
-              <div class="thumbnail-placeholder">
-                <span style="font-size: 32px;">✨</span>
-                <span>Untitled Design</span>
-              </div>
-              <div class="card-badge"><span>📱</span> Social</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">Untitled Design</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#ef4444;"></span> Instagram Post (1:1) • Edited 14 hours ago
-              </span>
-            </div>
-          </a>
-
-          <!-- Card 4: Minimalist White Card (Doc 794x1123) -->
-          <a href="./index.html?w=794&h=1123&name=sa%20Document" class="design-card" title="Open A4 Document 794x1123">
-            <div class="card-thumbnail" style="background: #f8fafc; border: 1px solid #e2e8f0;">
-              <div class="thumbnail-placeholder" style="color: #64748b;">
-                <span style="font-size: 32px;">📄</span>
-                <span>Document Layout</span>
-              </div>
-              <div class="card-badge"><span>📑</span> Doc</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">sa</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#a855f7;"></span> Document (A4) • Edited 18 days ago
-              </span>
-            </div>
-          </a>
-
-          <!-- Card 5: Sahabat Horor Poster (1080x1350) -->
-          <a href="./index.html?w=1080&h=1350&name=Sahabat%20Horor" class="design-card" title="Open Poster 1080x1350">
-            <div class="card-thumbnail" style="background: linear-gradient(135deg, #450a0a 0%, #000000 100%);">
-              <div class="thumbnail-placeholder">
-                <span style="font-size: 32px;">🎬</span>
-                <span>Sahabat Horor Film</span>
-              </div>
-              <div class="card-badge"><span>🍿</span> Poster</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">Sahabat Horor</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#ef4444;"></span> Instagram Post (4:5) • Edited 1 day ago
-              </span>
-            </div>
-          </a>
-
-          <!-- Card 6: Nonton Film Green Frame (Reels 1080x1920) -->
-          <a href="./index.html?w=1080&h=1920&name=Nonton%20Film%20Reel" class="design-card" title="Open Reel 1080x1920">
-            <div class="card-thumbnail" style="background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);">
-              <div class="thumbnail-placeholder">
-                <span style="font-size: 32px;">▶️</span>
-                <span>Reels / Story Cover</span>
-              </div>
-              <div class="card-badge"><span>🎥</span> Video</div>
-              <button class="card-overlay-btn">Edit in Studio</button>
-            </div>
-            <div class="card-info">
-              <span class="card-title">Nonton Film</span>
-              <span class="card-meta">
-                <span class="meta-icon" style="background:#ec4899;"></span> 1080 x 1920 px • Edited 1 day ago
-              </span>
-            </div>
-          </a>
+        <!-- Show more button matching Screenshot 1 -->
+        <div class="show-more-wrapper">
+          <button class="btn-show-more" id="btnShowMore">Show more</button>
         </div>
       </section>
     </main>
+
+    <!-- ====================================================================
+         CANVA CONTEXT DROPDOWN MENU (Screenshot 2)
+         ==================================================================== -->
+    <div class="canva-dropdown-menu" id="canvaDropdownMenu" style="display: none;">
+      <div class="canva-menu-header">
+        <div class="canva-menu-title-row">
+          <span class="canva-menu-title" id="canvaMenuTitle">Untitled Design</span>
+          <button class="canva-menu-rename-btn" id="canvaMenuRenameBtn" title="Rename design">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+        </div>
+        <div class="canva-menu-sub">
+          <span>By Wargative</span>
+          <span>•</span>
+          <span style="display: inline-flex; align-items: center; gap: 3px;">
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            0 visitors
+          </span>
+        </div>
+      </div>
+      <div class="canva-menu-divider"></div>
+      <div class="canva-menu-list">
+        <button class="canva-menu-item" data-action="open-tab">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </span>
+          <span>Open in a new tab</span>
+        </button>
+        <button class="canva-menu-item" data-action="details">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span>Details</span>
+        </button>
+        <button class="canva-menu-item" data-action="save-template">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+          </span>
+          <span>Save as template</span>
+          <span class="canva-crown-badge">👑</span>
+        </button>
+        <button class="canva-menu-item" data-action="duplicate">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </span>
+          <span>Make a copy</span>
+        </button>
+        <button class="canva-menu-item" data-action="download">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </span>
+          <span>Download</span>
+        </button>
+        <button class="canva-menu-item" data-action="print">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+          </span>
+          <span>Use my printer</span>
+        </button>
+        <button class="canva-menu-item" data-action="move">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </span>
+          <span>Move</span>
+        </button>
+        <button class="canva-menu-item" data-action="share">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </span>
+          <span>Share</span>
+        </button>
+        <button class="canva-menu-item" data-action="copy-link">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </span>
+          <span>Copy link</span>
+        </button>
+        <button class="canva-menu-item" data-action="offline">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+            </svg>
+          </span>
+          <span>Make available offline</span>
+        </button>
+        <div class="canva-menu-divider"></div>
+        <button class="canva-menu-item danger" data-action="trash">
+          <span class="canva-menu-icon">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </span>
+          <span>Move to Trash</span>
+        </button>
+      </div>
+    </div>
 
     <!-- ====================================================================
          MODAL: CREATE A DESIGN (Canva Style Popup)
@@ -554,6 +572,122 @@
         </div>
       </div>
     </div>
+
+    <!-- ====================================================================
+         MODAL: DESIGN DETAILS
+         ==================================================================== -->
+    <div class="modal-backdrop" id="detailsModal">
+      <div class="modal-card" style="max-width: 480px; padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: #0f172a;">Design Details</h3>
+          <button class="modal-close-btn" id="btnCloseDetailsModal">✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Title</span>
+            <span style="font-weight: 600; color: #0f172a;" id="detailTitle">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Dimensions</span>
+            <span style="font-weight: 600; color: #0f172a;" id="detailDimensions">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Format</span>
+            <span style="font-weight: 600; color: #0f172a;" id="detailFormat">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Last Edited</span>
+            <span style="font-weight: 600; color: #0f172a;" id="detailUpdated">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Author</span>
+            <span style="font-weight: 600; color: #7047eb;">Wargative Official (Bayu Pamungkas)</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+            <span style="color: #64748b;">Storage Status</span>
+            <span style="font-weight: 600; color: #10b981;">Auto-Saved & Persistent ✓</span>
+          </div>
+        </div>
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button class="btn-upload-file" id="btnDetailOpen">Open in Studio</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: BRAND KIT
+         ==================================================================== -->
+    <div class="modal-backdrop" id="brandModal">
+      <div class="modal-card" style="max-width: 560px; padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: #0f172a;">🎨 Wargative Brand Kit</h3>
+          <button class="modal-close-btn" id="btnCloseBrandModal">✕</button>
+        </div>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+          Your verified brand colors, logos, and typography are automatically available inside Wargative Studio.
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Brand Colors</h4>
+            <div style="display: flex; gap: 10px;">
+              <div style="width: 44px; height: 44px; border-radius: 8px; background: #7047eb; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700;" title="#7047eb">#7047EB</div>
+              <div style="width: 44px; height: 44px; border-radius: 8px; background: #6366f1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700;" title="#6366f1">#6366F1</div>
+              <div style="width: 44px; height: 44px; border-radius: 8px; background: #10b981; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700;" title="#10b981">#10B981</div>
+              <div style="width: 44px; height: 44px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700;" title="#0f172a">#0F172A</div>
+            </div>
+          </div>
+          <div>
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px;">Brand Logos</h4>
+            <div style="display: flex; gap: 12px;">
+              <div style="padding: 10px 16px; border-radius: 8px; border: 1px dashed #cbd5e1; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; color: #7047eb;">
+                <span>W</span> Wargative Primary
+              </div>
+              <div style="padding: 10px 16px; border-radius: 8px; background: #0f172a; display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; color: #ffffff;">
+                <span>W</span> Dark Monogram
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Typography</h4>
+            <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 700; color: #0f172a;">Plus Jakarta Sans (Headings & Titles)</div>
+            <div style="font-family: 'Inter', sans-serif; font-size: 13px; color: #64748b; margin-top: 3px;">Inter (Body & Paragraphs)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         MODAL: HELP & SHORTCUTS
+         ==================================================================== -->
+    <div class="modal-backdrop" id="helpModal">
+      <div class="modal-card" style="max-width: 460px; padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+          <h3 style="font-size: 18px; font-weight: 700; color: #0f172a;">Help & Shortcuts</h3>
+          <button class="modal-close-btn" id="btnCloseHelpModal">✕</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+            <span>Create new design</span>
+            <kbd style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: 700;">C</kbd>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+            <span>Search designs</span>
+            <kbd style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: 700;">/</kbd>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+            <span>Close popup / modal</span>
+            <kbd style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-weight: 700;">Esc</kbd>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f1f5f9;">
+            <span>Auto-Save Status</span>
+            <span style="color: #10b981; font-weight: 700;">Always Active ✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Script -->
     <script type="module" src="./src/home/home.ts"></script>
