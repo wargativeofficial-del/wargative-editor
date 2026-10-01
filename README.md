@@ -1,37 +1,33 @@
 # Wargative Editor 🎨
 
-> Powerful Canva-like Design Studio built with React.  
+> Modern, powerful Canva-like Design Studio built with CE.SDK & Vite.  
 > Created & maintained by **Bayu Pamungkas**.
 
 ---
 
-## 🚀 Features
+## 🚀 Fitur Unggulan (Modern Design Editor)
 
-- **Rich Canvas Editing**: Drag-and-drop elements, resize, rotate, and layer management.
-- **Wargative Stock Photos**: Built-in curated high-resolution photography ready to use.
-- **Custom Graphics & Stickers**: Access to diverse shapes, vector icons, and stickers.
-- **Design Presets & Templates**: Fast starter templates for Postcards, Business Cards, Instagram Posts & Stories, Collages, and Posters.
-- **Exporting**: Export designs in high-quality PNG, JPEG, and PDF formats.
+- **Floating Contextual Toolbar**: Mengedit font (Montserrat, Roboto, dsb.), ukuran teks, warna, background, path, bayangan, posisi, dan layer secara instan saat elemen dipilih.
+- **Document Settings**: Pengaturan dimensi halaman (pixel, mm, inch), Preset ukuran canvas, Resize Page, Clip Content, dan Bleed Margin.
+- **Flyer & Marketing Templates**: Template desain profesional siap pakai (*"Let us plan your next education event"* dan template lainnya).
+- **Unified Uploads & Images**: Gambar yang kamu upload otomatis tersimpan di tab **Images** -> **Image Uploads**.
+- **AI Background Removal**: Menghapus background foto secara instan di dalam browser.
+- **Complete Actions**: Simpan (*Save Scene*), Ekspor Gambar (PNG / JPEG), dan Ekspor PDF untuk cetak.
 
 ---
 
-## 🛠️ Quick Start
+## 🛠️ Cara Menjalankan
 
-### 1. Installation
-Install dependencies:
-```bash
-npm install
-```
-
-### 2. Development Server
-Run the local development server:
+### 1. Jalankan Server Lokal
 ```bash
 npm start
+# atau
+npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to view the editor in your browser.
+Aplikasi akan otomatis terbuka di browser pada:
+[http://localhost:5173](http://localhost:5173)
 
-### 3. Production Build
-Build for production deployment:
+### 2. Build untuk Production
 ```bash
 npm run build
 ```
