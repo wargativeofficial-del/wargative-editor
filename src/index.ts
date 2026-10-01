@@ -18,11 +18,7 @@ import { DEMO_ASSETS_BASE_URL } from './imgly/demo-assets';
 
 const config = {
   userId: 'starterkit-design-editor-user',
-
-  // IMG.LY CDN (for quick testing only, NOT recommended for production)
-
-  // Local assets for development
-
+  license: 'vERESgSXbYj5Rs-FF4DzkMvhdQLh0Mxe6AD8V-doP6wqe_gmYmx_oUKqIlMkwpMu'
 };
 
 // ============================================================================

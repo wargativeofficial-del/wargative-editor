@@ -65,11 +65,16 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
   // ============================================================================
 
   // #region Save Scene Action
-  // Save the current scene as a .scene JSON file
-  // This preserves the entire scene structure for later editing
+  // Export the design as image directly so the user gets their image file
   cesdk.actions.register('saveScene', async () => {
-    const scene = await cesdk.engine.scene.saveToString();
-    await cesdk.utils.downloadFile(scene, 'text/plain;charset=UTF-8');
+    try {
+      const { blobs, options } = await cesdk.utils.export({ mimeType: 'image/png' });
+      if (blobs && blobs[0]) {
+        await cesdk.utils.downloadFile(blobs[0], options.mimeType);
+      }
+    } catch (error) {
+      console.error('Failed to export image on save:', error);
+    }
   });
   // #endregion
 

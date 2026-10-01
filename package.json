@@ -8,12 +8,16 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "check:syntax": "tsc --noEmit"
+    "check:syntax": "tsc --noEmit",
+    "postinstall": "node scripts/patch-cesdk.js"
   },
   "dependencies": {
     "@cesdk/cesdk-js": "^1.83.0",
     "@cesdk/engine": "^1.83.0",
     "@imgly/plugin-background-removal-web": "^1.83.0",
+    "fabric": "^7.4.0",
+    "jspdf": "^4.2.1",
+    "lucide": "^1.49.0",
     "onnxruntime-web": "1.21.0"
   },
   "devDependencies": {
