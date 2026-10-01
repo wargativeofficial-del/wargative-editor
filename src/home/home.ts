@@ -1,5 +1,6 @@
 /**
  * Wargative Home Dashboard - Canva Style Frontend Logic
+ * Connects all presets, custom dimensions, and actions directly to Wargative Editor
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,10 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalTabs = document.querySelectorAll('.modal-tab-btn');
   const tabContents = document.querySelectorAll('.tab-content-panel');
   const searchInput = document.getElementById('mainSearchInput') as HTMLInputElement;
+  const modalSearchInput = document.getElementById('modalSearchInput') as HTMLInputElement;
   const customWidthInput = document.getElementById('customWidth') as HTMLInputElement;
   const customHeightInput = document.getElementById('customHeight') as HTMLInputElement;
+  const customUnitsSelect = document.getElementById('customUnits') as HTMLSelectElement;
   const btnCreateCustom = document.getElementById('btnCreateCustom') as HTMLElement;
-  const quickCategories = document.querySelectorAll('[data-category]');
+  const modalActionTriggers = document.querySelectorAll('[data-action="open-modal"]');
+  const navTemplatesBtn = document.getElementById('navTemplatesBtn');
 
   // Open Modal function
   function openModal(defaultTabId?: string) {
@@ -21,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     modalBackdrop.classList.add('open');
     if (defaultTabId) {
       switchTab(defaultTabId);
+    }
+    if (modalSearchInput) {
+      modalSearchInput.focus();
     }
   }
 
@@ -53,6 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Event Listeners for Modal
   btnOpenModal?.addEventListener('click', () => openModal('foryou'));
   btnCloseModal?.addEventListener('click', closeModal);
+  navTemplatesBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openModal('foryou');
+  });
 
   modalBackdrop?.addEventListener('click', (e) => {
     if (e.target === modalBackdrop) {
@@ -74,33 +85,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Category Row Quick Actions
-  quickCategories.forEach((cat) => {
-    cat.addEventListener('click', () => {
-      const categoryType = cat.getAttribute('data-category');
-      if (categoryType === 'custom') {
-        openModal('custom');
-      } else if (categoryType === 'upload') {
-        openModal('upload');
-      } else if (categoryType === 'presentation') {
-        openModal('presentations');
-      } else if (categoryType === 'social') {
-        openModal('social');
-      } else {
-        openModal('foryou');
-      }
+  // Category Row Quick Actions that trigger modal
+  modalActionTriggers.forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      const tab = trigger.getAttribute('data-tab') || 'foryou';
+      openModal(tab);
     });
   });
 
   // Custom Size Creation -> Navigates to Wargative Editor
-  btnCreateCustom?.addEventListener('click', () => {
-    const width = customWidthInput?.value || '1080';
-    const height = customHeightInput?.value || '1080';
-    // Navigate to editor with parameters
-    window.location.href = `/index.html?w=${width}&h=${height}`;
+  function handleCustomCreate() {
+    let width = parseFloat(customWidthInput?.value || '1080');
+    let height = parseFloat(customHeightInput?.value || '1080');
+    const unit = customUnitsSelect?.value || 'px';
+
+    if (isNaN(width) || width <= 0) width = 1080;
+    if (isNaN(height) || height <= 0) height = 1080;
+
+    // Convert units to pixels for standard web canvas DPI
+    if (unit === 'in') {
+      width = Math.round(width * 96);
+      height = Math.round(height * 96);
+    } else if (unit === 'mm') {
+      width = Math.round((width / 25.4) * 96);
+      height = Math.round((height / 25.4) * 96);
+    } else if (unit === 'cm') {
+      width = Math.round(((width * 10) / 25.4) * 96);
+      height = Math.round(((height * 10) / 25.4) * 96);
+    }
+
+    // Navigate to Wargative Editor with parameters
+    window.location.href = `./index.html?w=${width}&h=${height}&name=Custom%20Design%20(${width}x${height})`;
+  }
+
+  btnCreateCustom?.addEventListener('click', handleCustomCreate);
+
+  // Allow pressing Enter in custom size inputs
+  [customWidthInput, customHeightInput].forEach((input) => {
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleCustomCreate();
+      }
+    });
   });
 
-  // Search filter for cards
+  // Main Page Search filter for cards
   searchInput?.addEventListener('input', (e) => {
     const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
     const cards = document.querySelectorAll('.design-card');
@@ -116,12 +145,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Toggle pill buttons (Home / Templates)
-  const togglePills = document.querySelectorAll('.toggle-pill-btn');
-  togglePills.forEach((pill) => {
-    pill.addEventListener('click', () => {
-      togglePills.forEach((p) => p.classList.remove('active'));
-      pill.classList.add('active');
+  // Modal Search Filter
+  modalSearchInput?.addEventListener('input', (e) => {
+    const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
+    const presetCards = document.querySelectorAll('.layout-preset-card');
+
+    presetCards.forEach((card) => {
+      const title = card.querySelector('.preset-title')?.textContent?.toLowerCase() || '';
+      const dims = card.querySelector('.preset-dimensions')?.textContent?.toLowerCase() || '';
+      if (!query || title.includes(query) || dims.includes(query)) {
+        (card as HTMLElement).style.display = 'flex';
+      } else {
+        (card as HTMLElement).style.display = 'none';
+      }
     });
+  });
+
+  // Toggle pill buttons (Home / Templates)
+  const tabHomeToggle = document.getElementById('tabHomeToggle');
+  const tabTemplatesToggle = document.getElementById('tabTemplatesToggle');
+
+  tabHomeToggle?.addEventListener('click', () => {
+    tabHomeToggle.classList.add('active');
+    tabTemplatesToggle?.classList.remove('active');
+  });
+
+  tabTemplatesToggle?.addEventListener('click', () => {
+    tabTemplatesToggle.classList.add('active');
+    tabHomeToggle?.classList.remove('active');
+    openModal('foryou');
   });
 });
