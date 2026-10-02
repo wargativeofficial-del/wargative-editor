@@ -11,8 +11,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export const isConfigured = Boolean(
   supabaseUrl &&
   supabaseAnonKey &&
-  supabaseUrl !== 'https://your-project.supabase.co' &&
-  !supabaseUrl.includes('placeholder')
+  !supabaseUrl.includes('YOUR_PROJECT_REF') &&
+  !supabaseUrl.includes('your-project') &&
+  !supabaseUrl.includes('placeholder') &&
+  !supabaseAnonKey.includes('YOUR_SUPABASE') &&
+  !supabaseAnonKey.includes('placeholder')
 );
 
 let supabaseInstance: SupabaseClient | null = null;
