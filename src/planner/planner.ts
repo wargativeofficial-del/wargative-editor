@@ -1711,8 +1711,12 @@ class WargativeContentPlanner {
           throw new Error('Hasil ekspor gambar kosong.');
         } catch (cesdkErr: any) {
           console.error('[Planner] CE.SDK headless export error:', cesdkErr);
-          // STRICT: Do NOT fallback to generic Canvas for user designs!
-          throw new Error(`Gagal mengekspor desain dari editor. Penerbitan dibatalkan agar tidak mengunggah konten yang salah ke Instagram. (${cesdkErr?.message || 'Export error'})`);
+          // STRICT: Extract full original CE.SDK error without falling back to generic 'Export error'
+          const errDetail = typeof cesdkErr === 'string'
+            ? cesdkErr
+            : (cesdkErr?.message || cesdkErr?.reason || cesdkErr?.error || (cesdkErr ? String(cesdkErr) : 'Export error'));
+          const errName = cesdkErr?.name && cesdkErr.name !== 'Error' ? ` [${cesdkErr.name}]` : '';
+          throw new Error(`Gagal mengekspor desain dari editor. Penerbitan dibatalkan agar tidak mengunggah konten yang salah ke Instagram. (${errDetail}${errName})`);
         } finally {
           if (engine) {
             try { engine.dispose(); } catch {}
