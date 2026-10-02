@@ -443,21 +443,51 @@
 
         <!-- Right Column: Channels List & Connect Actions -->
         <div class="connect-social-right-content">
-          <div>
-            <h2 class="connect-social-heading">Hubungkan akun media sosial saya</h2>
-            <p class="connect-social-subheading">
-              Pilih dan hubungkan akun Anda untuk otomatisasi jadwal dan publikasi konten langsung.
-            </p>
+          <!-- View 1: Channels List (Image 1) -->
+          <div id="connectViewChannelsList">
+            <div>
+              <h2 class="connect-social-heading">Hubungkan akun media sosial saya</h2>
+              <p class="connect-social-subheading">
+                Pilih dan hubungkan akun Anda untuk otomatisasi jadwal dan publikasi konten langsung.
+              </p>
 
-            <div class="social-channels-connect-list" id="socialAccountsListContainer">
-              <!-- Rendered dynamically by planner.ts -->
+              <div class="social-channels-connect-list" id="socialAccountsListContainer">
+                <!-- Rendered dynamically by planner.ts -->
+              </div>
             </div>
+
+            <button class="btn-create-content-large" id="btnConnectModalCreateContent" type="button">
+              <span>✨</span>
+              <span>Buat Konten</span>
+            </button>
           </div>
 
-          <button class="btn-create-content-large" id="btnConnectModalCreateContent" type="button">
-            <span>✨</span>
-            <span>Buat Konten</span>
-          </button>
+          <!-- View 2: Step-by-Step Connect Flow (Matching User Screenshot) -->
+          <div id="connectViewStepsFlow" style="display: none; height: 100%; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="view-back-header" id="btnBackFromStepsFlow" style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; margin-bottom: 22px; color: #111827;">
+                <span style="font-size: 20px; line-height: 1;">&lsaquo;</span>
+                <span id="stepsFlowHeaderTitle">Connect to Instagram Business</span>
+              </div>
+
+              <div class="steps-flow-container" id="stepsFlowItemsContainer">
+                <!-- Rendered dynamically for each platform -->
+              </div>
+            </div>
+
+            <div>
+              <button class="btn-connect-oauth-action" id="btnStartOAuthFlow" type="button">
+                <span class="spinner" id="oauthBtnSpinner"></span>
+                <span id="btnStartOAuthText">Connect Instagram Business via Facebook</span>
+              </button>
+
+              <div style="text-align: center; margin-top: 14px;">
+                <a href="javascript:void(0)" id="linkOpenManualConfig" style="font-size: 12px; color: #7047eb; font-weight: 600; text-decoration: none;">
+                  ⚙️ Masukkan Token / API Key manual &rsaquo;
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

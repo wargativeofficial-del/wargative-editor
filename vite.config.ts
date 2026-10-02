@@ -14,7 +14,8 @@ export default defineConfig({
         home: resolve(__dirname, 'home.html'),
         templates: resolve(__dirname, 'templates.html'),
         ai: resolve(__dirname, 'wargative-ai.html'),
-        planner: resolve(__dirname, 'planner.html')
+        planner: resolve(__dirname, 'planner.html'),
+        oauth: resolve(__dirname, 'oauth-popup.html')
       }
     }
   }

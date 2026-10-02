@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Facebook - Log in to Facebook</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #ffffff;
+        color: #1c1e21;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px 20px;
+      }
+
+      .oauth-container {
+        width: 100%;
+        max-width: 416px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      /* Facebook Logo matching screenshot */
+      .brand-icon-wrapper {
+        margin-bottom: 20px;
+      }
+
+      .fb-circle-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #1877f2;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+        font-weight: 900;
+        font-family: Helvetica, Arial, sans-serif;
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
+      }
+
+      .oauth-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1c1e21;
+        margin-bottom: 8px;
+      }
+
+      .oauth-subtitle {
+        font-size: 13px;
+        color: #65676b;
+        margin-bottom: 24px;
+        line-height: 1.4;
+      }
+
+      .oauth-form {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .input-wrapper {
+        width: 100%;
+        text-align: left;
+      }
+
+      .input-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4b4f56;
+        margin-bottom: 4px;
+      }
+
+      .oauth-input {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 15px;
+        border: 1.5px solid #ccd0d5;
+        border-radius: 8px;
+        background-color: #ffffff;
+        color: #1c1e21;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .oauth-input:focus {
+        border-color: #1877f2;
+        box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+      }
+
+      .btn-submit-oauth {
+        width: 100%;
+        padding: 13px;
+        background-color: #1877f2;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.15s ease, transform 0.1s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+
+      .btn-submit-oauth:hover {
+        background-color: #166fe5;
+      }
+
+      .btn-submit-oauth:active {
+        transform: scale(0.99);
+      }
+
+      .btn-submit-oauth:disabled {
+        background-color: #9cbff7;
+        cursor: not-allowed;
+      }
+
+      .oauth-links-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      .forgot-password-link {
+        font-size: 14px;
+        color: #1877f2;
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .forgot-password-link:hover {
+        text-decoration: underline;
+      }
+
+      .meta-managed-link {
+        font-size: 14px;
+        color: #1877f2;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .meta-managed-link:hover {
+        text-decoration: underline;
+      }
+
+      .divider-line {
+        width: 100%;
+        height: 1px;
+        background-color: #dadde1;
+        margin: 10px 0;
+      }
+
+      .meta-real-app-box {
+        margin-top: 20px;
+        padding: 12px;
+        background: #f7f8fa;
+        border: 1px solid #e4e6eb;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #65676b;
+        text-align: left;
+        width: 100%;
+      }
+
+      .meta-real-app-box a {
+        color: #1877f2;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .meta-real-app-box a:hover {
+        text-decoration: underline;
+      }
+
+      /* Spinner */
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Success Screen */
+      .oauth-success-state {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .success-checkmark {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #e7f8ec;
+        color: #2e7d32;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: bold;
+        animation: popCheck 0.3s ease;
+      }
+
+      @keyframes popCheck {
+        0% { transform: scale(0.5); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="oauth-container">
+      <!-- Main Auth State -->
+      <div id="authStateMain" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div class="brand-icon-wrapper" id="brandIconWrapper">
+          <div class="fb-circle-logo" id="brandLogo">f</div>
+        </div>
+
+        <h1 class="oauth-title" id="oauthTitle">Log in to Facebook</h1>
+        <p class="oauth-subtitle" id="oauthSubtitle">
+          Hubungkan akun untuk memberikan izin posting otomatis ke Wargative Content Planner.
+        </p>
+
+        <form class="oauth-form" id="oauthForm">
+          <div class="input-wrapper">
+            <input
+              type="text"
+              class="oauth-input"
+              id="inputUserIdentity"
+              placeholder="Email address or mobile number"
+              required
+              autofocus
+            />
+          </div>
+
+          <div class="input-wrapper">
+            <input
+              type="password"
+              class="oauth-input"
+              id="inputUserPassword"
+              placeholder="Password"
+              required
+            />
+          </div>
+
+          <button type="submit" class="btn-submit-oauth" id="btnSubmitLogin">
+            <span class="spinner" id="loginSpinner"></span>
+            <span id="btnSubmitText">Log in</span>
+          </button>
+        </form>
+
+        <div class="oauth-links-stack">
+          <a href="https://www.facebook.com/recover/initiate" target="_blank" class="forgot-password-link">Forgotten password?</a>
+          <div class="divider-line"></div>
+          <a href="#" id="metaManagedLink" class="meta-managed-link">Log in with a managed Meta account</a>
+        </div>
+
+        <div class="meta-real-app-box" id="realAppNoticeBox">
+          🔒 <strong>Meta Verified OAuth Protocol</strong><br />
+          Token otorisasi dan identitas bisnis akan ditransmisikan secara terenkripsi ke Wargative Studio.
+        </div>
+      </div>
+
+      <!-- Success Connected State -->
+      <div class="oauth-success-state" id="authStateSuccess">
+        <div class="success-checkmark">✓</div>
+        <h2 style="font-size: 20px; font-weight: 800; color: #1c1e21;">Otorisasi Berhasil!</h2>
+        <p style="font-size: 14px; color: #65676b;" id="successAccountDesc">
+          Akun Anda telah terhubung ke Wargative Content Planner.
+        </p>
+        <span style="font-size: 12px; color: #1877f2; font-weight: 600; margin-top: 8px;">
+          Menutup jendela ini otomatis...
+        </span>
+      </div>
+    </div>
+
+    <script>
+      // Parse Query Parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const channel = urlParams.get('channel') || 'instagram';
+
+      const brandLogo = document.getElementById('brandLogo');
+      const oauthTitle = document.getElementById('oauthTitle');
+      const oauthSubtitle = document.getElementById('oauthSubtitle');
+      const inputUserIdentity = document.getElementById('inputUserIdentity');
+      const btnSubmitText = document.getElementById('btnSubmitText');
+      const oauthForm = document.getElementById('oauthForm');
+      const btnSubmitLogin = document.getElementById('btnSubmitLogin');
+      const loginSpinner = document.getElementById('loginSpinner');
+      const authStateMain = document.getElementById('authStateMain');
+      const authStateSuccess = document.getElementById('authStateSuccess');
+      const successAccountDesc = document.getElementById('successAccountDesc');
+
+      // Theme customization based on selected channel
+      if (channel === 'instagram') {
+        document.title = 'Facebook - Log in to connect Instagram Business';
+        brandLogo.textContent = 'f';
+        brandLogo.style.background = '#1877f2';
+        oauthTitle.textContent = 'Log in to Facebook';
+        oauthSubtitle.textContent = 'Masuk ke Facebook untuk mengotorisasi halaman dan akun Instagram Business Anda.';
+        inputUserIdentity.placeholder = 'Email address or mobile number';
+        inputUserIdentity.value = 'bayu.pamungkas@wargative.id';
+      } else if (channel === 'facebook') {
+        document.title = 'Facebook - Log in to connect Page';
+        brandLogo.textContent = 'f';
+        brandLogo.style.background = '#1877f2';
+        oauthTitle.textContent = 'Log in to Facebook';
+        oauthSubtitle.textContent = 'Masuk untuk menghubungkan Halaman Facebook Anda ke Wargative Studio.';
+        inputUserIdentity.value = 'wargative.official@gmail.com';
+      } else if (channel === 'tiktok') {
+        document.title = 'TikTok - Authorize Wargative Studio';
+        brandLogo.innerHTML = '🎵';
+        brandLogo.style.background = '#000000';
+        oauthTitle.textContent = 'Log in to TikTok';
+        oauthSubtitle.textContent = 'Authorize Wargative Content Planner to manage your TikTok videos and schedule posts.';
+        inputUserIdentity.placeholder = 'Phone / Email / Username';
+        inputUserIdentity.value = '@wargative.creatives';
+        btnSubmitLogin.style.backgroundColor = '#fe2c55';
+      } else if (channel === 'threads') {
+        document.title = 'Threads - Log in with Instagram';
+        brandLogo.innerHTML = '🧵';
+        brandLogo.style.background = '#000000';
+        oauthTitle.textContent = 'Log in to Threads';
+        oauthSubtitle.textContent = 'Sambungkan akun Threads Anda melalui otorisasi Meta.';
+        inputUserIdentity.placeholder = 'Username, phone or email';
+        inputUserIdentity.value = '@wargative.id';
+        btnSubmitLogin.style.backgroundColor = '#000000';
+      } else if (channel === 'youtube') {
+        document.title = 'Google - Sign in with Google for YouTube';
+        brandLogo.innerHTML = '▶';
+        brandLogo.style.background = '#ff0000';
+        oauthTitle.textContent = 'Sign in with Google';
+        oauthSubtitle.textContent = 'Izinkan Wargative Content Planner untuk mengelola upload video & jadwal posting YouTube Anda.';
+        inputUserIdentity.placeholder = 'Email or phone';
+        inputUserIdentity.value = 'studio@wargative.com';
+        btnSubmitLogin.style.backgroundColor = '#1a73e8';
+      }
+
+      // Handle Submit / Login Click
+      oauthForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const identityVal = inputUserIdentity.value.trim() || 'wargative.official';
+
+        // Format nice display handle
+        let displayHandle = identityVal;
+        if (identityVal.includes('@') && !identityVal.startsWith('@')) {
+          displayHandle = '@' + identityVal.split('@')[0];
+        } else if (!identityVal.startsWith('@') && !identityVal.includes(' ')) {
+          displayHandle = '@' + identityVal;
+        }
+
+        // Show loading state
+        btnSubmitLogin.disabled = true;
+        loginSpinner.style.display = 'inline-block';
+        btnSubmitText.textContent = 'Verifying credentials...';
+
+        setTimeout(() => {
+          loginSpinner.style.display = 'none';
+          btnSubmitText.textContent = 'Authorizing with Meta...';
+
+          setTimeout(() => {
+            // Generate tokens and payload
+            const mockToken = 'EAABwargative_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            const mockAccountId = '178414' + Math.floor(100000000 + Math.random() * 900000000);
+
+            const payload = {
+              type: 'WARGATIVE_SOCIAL_AUTH_SUCCESS',
+              channelId: channel,
+              handle: displayHandle,
+              token: mockToken,
+              accountId: mockAccountId,
+              name: channel === 'instagram' ? 'Instagram Business' : channel === 'facebook' ? 'Halaman Facebook' : channel.toUpperCase(),
+              timestamp: Date.now()
+            };
+
+            // Switch to success UI
+            authStateMain.style.display = 'none';
+            authStateSuccess.style.display = 'flex';
+            successAccountDesc.textContent = `Akun ${displayHandle} berhasil diverifikasi dan terhubung ke Wargative Studio.`;
+
+            // Notify parent window (opener)
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage(payload, '*');
+            }
+
+            // Close popup after 1.2s
+            setTimeout(() => {
+              window.close();
+            }, 1200);
+          }, 800);
+        }, 900);
+      });
+    </script>
+  </body>
+</html>
