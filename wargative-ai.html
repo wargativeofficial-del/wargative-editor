@@ -97,6 +97,12 @@
         </div>
 
         <div class="top-bar-right">
+          <div class="top-action-icons">
+            <button class="top-sub-btn" title="Ingatan / Memori AI"><span>📖</span> Ingatan</button>
+            <button class="top-sub-btn" title="Tugas Desain"><span>📝</span> Tugas</button>
+            <button class="top-sub-btn" title="Perpustakaan"><span>📚</span> Perpustakaan</button>
+          </div>
+
           <div class="gemini-status-pill">
             <span class="status-dot"></span>
             <span>Gemini 3.8 Flash</span>
@@ -108,186 +114,245 @@
         </div>
       </header>
 
-      <!-- Central Chat & Canvas Container -->
-      <div class="ai-canvas-area" id="aiCanvasArea">
-        <!-- WELCOME SCREEN (Shown when active chat is empty) -->
-        <section class="ai-welcome-view" id="aiWelcomeView">
-          <div class="welcome-center-box">
-            <h1 class="welcome-heading">
-              Apa yang akan kita rancang hari ini, Wargative?
-            </h1>
+      <!-- SPLIT WORKSPACE: Left Chat & Right Live Canvas -->
+      <div class="ai-split-workspace" id="aiSplitWorkspace">
+        <!-- LEFT PANEL: Chat / Welcome Area -->
+        <section class="chat-side-panel" id="chatSidePanel">
+          <div class="chat-inner-scroll" id="chatInnerScroll">
+            <!-- WELCOME SCREEN (Shown when active chat is empty) -->
+            <div class="ai-welcome-view" id="aiWelcomeView">
+              <div class="welcome-center-box">
+                <h1 class="welcome-heading">
+                  Apa yang akan kita rancang hari ini, Wargative?
+                </h1>
 
-            <!-- Suggestion Carousel -->
-            <div class="cards-carousel-wrapper">
-              <!-- Carousel Left Arrow -->
-              <button class="carousel-arrow-btn prev" id="btnCarouselPrev" title="Lihat saran sebelumnya" style="opacity: 0; pointer-events: none;">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
+                <!-- Suggestion Carousel -->
+                <div class="cards-carousel-wrapper">
+                  <!-- Carousel Left Arrow -->
+                  <button class="carousel-arrow-btn prev" id="btnCarouselPrev" title="Lihat saran sebelumnya" style="opacity: 0; pointer-events: none;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
 
-              <div class="cards-carousel-track" id="cardsCarouselTrack">
-                <!-- Card 1: Social Media -->
-                <div class="suggestion-card card-social" data-prompt="Buat postingan media sosial yang menarik dan kreatif untuk Instagram dengan visual concept, headline catchy, dan copywriting lengkap.">
-                  <div class="card-text-title">Buat postingan media sosial.</div>
-                  <div class="card-visual-mockup mockup-social">
-                    <div class="mini-ig-card">
-                      <div class="mini-ig-header">
-                        <div class="mini-ig-avatar"></div>
-                        <div class="mini-ig-user">wargative.design</div>
+                  <div class="cards-carousel-track" id="cardsCarouselTrack">
+                    <!-- Card 1: Social Media -->
+                    <div class="suggestion-card card-social" data-card-prompt="Buat postingan media sosial.">
+                      <div class="card-text-title">Buat postingan media sosial.</div>
+                      <div class="card-visual-mockup mockup-social">
+                        <div class="mini-ig-card">
+                          <div class="mini-ig-header">
+                            <div class="mini-ig-avatar"></div>
+                            <div class="mini-ig-user">wargative.design</div>
+                          </div>
+                          <div class="mini-ig-image">
+                            <span class="mini-ig-badge">✨ NEW</span>
+                            <div class="mini-ig-person"></div>
+                          </div>
+                        </div>
                       </div>
-                      <div class="mini-ig-image">
-                        <span class="mini-ig-badge">✨ NEW</span>
-                        <div class="mini-ig-person"></div>
+                    </div>
+
+                    <!-- Card 2: Presentation Deck -->
+                    <div class="suggestion-card card-presentation" data-card-prompt="Rancanglah sebuah dek presentasi profesional.">
+                      <div class="card-text-title">Rancanglah sebuah dek presentasi profesional.</div>
+                      <div class="card-visual-mockup mockup-presentation">
+                        <div class="mini-deck-slide">
+                          <div class="mini-deck-bold">GROW<br/>YOUR<br/>BUSINESS</div>
+                          <div class="mini-deck-accent"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Card 3: Learning / Document Plan -->
+                    <div class="suggestion-card card-document" data-card-prompt="Bantu saya membuat rencana pembelajaran.">
+                      <div class="card-text-title">Bantu saya membuat rencana pembelajaran.</div>
+                      <div class="card-visual-mockup mockup-document">
+                        <div class="mini-doc-sheet">
+                          <div class="mini-doc-line title"></div>
+                          <div class="mini-doc-grid">
+                            <div class="mini-doc-box"></div>
+                            <div class="mini-doc-box"></div>
+                            <div class="mini-doc-box"></div>
+                          </div>
+                          <div class="mini-doc-line"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Card 4: Promotional Banner -->
+                    <div class="suggestion-card card-promo" data-card-prompt="Buatkan konsep banner promosi flash sale.">
+                      <div class="card-text-title">Buatkan konsep banner promosi flash sale.</div>
+                      <div class="card-visual-mockup mockup-promo">
+                        <div class="mini-promo-banner">
+                          <div class="mini-promo-tag">FLASH SALE</div>
+                          <div class="mini-promo-discount">70% OFF</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Card 5: Color Palette & Brand -->
+                    <div class="suggestion-card card-brand" data-card-prompt="Racik palet warna brand modern eksklusif.">
+                      <div class="card-text-title">Racik palet warna brand modern eksklusif.</div>
+                      <div class="card-visual-mockup mockup-brand">
+                        <div class="mini-swatch-row">
+                          <span style="background: #4c1d95;"></span>
+                          <span style="background: #7047eb;"></span>
+                          <span style="background: #06b6d4;"></span>
+                          <span style="background: #f43f5e;"></span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Card 2: Presentation Deck -->
-                <div class="suggestion-card card-presentation" data-prompt="Rancanglah sebuah dek presentasi profesional tentang pertumbuhan bisnis, strategi marketing, dan rencana eksekusi tahun ini.">
-                  <div class="card-text-title">Rancanglah sebuah dek presentasi profesional.</div>
-                  <div class="card-visual-mockup mockup-presentation">
-                    <div class="mini-deck-slide">
-                      <div class="mini-deck-bold">GROW<br/>YOUR<br/>BUSINESS</div>
-                      <div class="mini-deck-accent"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Card 3: Learning / Document Plan -->
-                <div class="suggestion-card card-document" data-prompt="Bantu saya membuat rencana pembelajaran atau dokumen kerja yang terstruktur, rapi, dan mudah dipahami.">
-                  <div class="card-text-title">Bantu saya membuat rencana pembelajaran.</div>
-                  <div class="card-visual-mockup mockup-document">
-                    <div class="mini-doc-sheet">
-                      <div class="mini-doc-line title"></div>
-                      <div class="mini-doc-grid">
-                        <div class="mini-doc-box"></div>
-                        <div class="mini-doc-box"></div>
-                        <div class="mini-doc-box"></div>
-                      </div>
-                      <div class="mini-doc-line"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Card 4: Promotional Banner -->
-                <div class="suggestion-card card-promo" data-prompt="Buatkan konsep banner promosi flash sale diskon hingga 70% dengan tema warna energik dan copywriting persuasif.">
-                  <div class="card-text-title">Buatkan konsep banner promosi flash sale.</div>
-                  <div class="card-visual-mockup mockup-promo">
-                    <div class="mini-promo-banner">
-                      <div class="mini-promo-tag">FLASH SALE</div>
-                      <div class="mini-promo-discount">70% OFF</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Card 5: Color Palette & Brand -->
-                <div class="suggestion-card card-brand" data-prompt="Buat racikan 5 palet warna brand modern eksklusif dengan gradient dan panduan penggunaannya.">
-                  <div class="card-text-title">Racik palet warna brand modern eksklusif.</div>
-                  <div class="card-visual-mockup mockup-brand">
-                    <div class="mini-swatch-row">
-                      <span style="background: #4c1d95;"></span>
-                      <span style="background: #7047eb;"></span>
-                      <span style="background: #06b6d4;"></span>
-                      <span style="background: #f43f5e;"></span>
-                    </div>
-                  </div>
+                  <!-- Carousel Right Arrow -->
+                  <button class="carousel-arrow-btn next" id="btnCarouselNext" title="Lihat saran lainnya">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
                 </div>
               </div>
+            </div>
 
-              <!-- Carousel Right Arrow -->
-              <button class="carousel-arrow-btn" id="btnCarouselNext" title="Lihat saran lainnya">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+            <!-- CHAT CONVERSATION STREAM (Shown when active chat has messages) -->
+            <div class="ai-chat-stream-view" id="aiChatStreamView" style="display: none;">
+              <div class="chat-messages-container" id="chatMessagesContainer">
+                <!-- Messages rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- BOTTOM FLOATING PROMPT INPUT BOX -->
+          <div class="bottom-prompt-wrapper" id="bottomPromptWrapper">
+            <div class="prompt-box-container">
+              <!-- Textarea -->
+              <textarea
+                id="chatPromptInput"
+                class="chat-prompt-textarea"
+                rows="1"
+                placeholder="Tugas apa yang harus kita selesaikan selanjutnya?"
+              ></textarea>
+
+              <!-- Action bar inside bottom of input box -->
+              <div class="prompt-actions-bar">
+                <div class="prompt-left-tools">
+                  <!-- Quick Magic Menu (+) Button -->
+                  <div class="quick-tools-wrapper">
+                    <button class="btn-tool-circle" id="btnQuickTools" title="Fitur Cepat Wargative AI">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+
+                    <!-- Popover Menu -->
+                    <div class="quick-tools-popover" id="quickToolsPopover">
+                      <div class="popover-header">Fitur Cepat Wargative AI</div>
+                      <button class="popover-item" data-tool="magic-design">
+                        <span class="tool-icon">🪄</span>
+                        <div class="tool-info">
+                          <span class="tool-name">Magic Design</span>
+                          <span class="tool-sub">Konsep layout & buka di Studio</span>
+                        </div>
+                      </button>
+                      <button class="popover-item" data-tool="magic-copy">
+                        <span class="tool-icon">✍️</span>
+                        <div class="tool-info">
+                          <span class="tool-name">Magic Copywriter</span>
+                          <span class="tool-sub">Caption, Headline & Slogan</span>
+                        </div>
+                      </button>
+                      <button class="popover-item" data-tool="smart-palette">
+                        <span class="tool-icon">🎨</span>
+                        <div class="tool-info">
+                          <span class="tool-name">Smart Color Palette</span>
+                          <span class="tool-sub">5 perpaduan HEX & Gradient</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Active Mode Pill -->
+                  <div class="active-mode-pill" id="activeModePill" style="display: none;">
+                    <span id="activeModeText">Magic Design</span>
+                    <button id="btnClearMode" title="Reset Mode">&times;</button>
+                  </div>
+                </div>
+
+                <div class="prompt-right-tools">
+                  <!-- Microphone Button -->
+                  <button class="btn-tool-circle btn-mic" id="btnVoiceMic" title="Bicara (Speech-to-Text)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </button>
+
+                  <!-- Send Button (Purple Round with Arrow) -->
+                  <button class="btn-send-prompt" id="btnSendPrompt" title="Kirim ke Wargative AI (Enter)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        <!-- CHAT CONVERSATION STREAM (Shown when active chat has messages) -->
-        <section class="ai-chat-stream-view" id="aiChatStreamView" style="display: none;">
-          <div class="chat-messages-container" id="chatMessagesContainer">
-            <!-- Messages rendered dynamically -->
+        <!-- RIGHT PANEL: Live Canvas Workspace (Split View Mode) -->
+        <section class="canvas-side-panel" id="canvasSidePanel" style="display: none;">
+          <!-- Canvas Top Action Bar -->
+          <div class="canvas-top-bar">
+            <div class="canvas-title-info">
+              <span class="canvas-badge">Live Canvas Preview</span>
+              <span class="canvas-project-name" id="canvasProjectName">Postingan Media Sosial</span>
+            </div>
+
+            <div class="canvas-top-actions">
+              <button class="btn-canvas-action btn-edit-design" id="btnCanvasEdit" title="Buka dan edit semua layer di Wargative Editor">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span>Edit desain</span>
+              </button>
+
+              <button class="btn-canvas-action btn-download-design" id="btnCanvasDownload" title="Unduh desain format PNG langsung">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Unduh</span>
+              </button>
+
+              <button class="btn-canvas-close" id="btnCanvasClose" title="Tutup preview kanvas">
+                &times;
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas Viewport with Center White Page -->
+          <div class="canvas-viewport" id="canvasViewport">
+            <div class="canvas-page-wrapper" id="canvasPageWrapper">
+              <!-- The Live Rendered Design Document -->
+              <div class="live-design-page" id="liveDesignPage">
+                <!-- Live canvas elements rendered by ai.ts -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Canvas Bottom Bar: Add Page & Zoom Controls -->
+          <div class="canvas-bottom-bar">
+            <button class="btn-add-page" id="btnAddPage">
+              <span>+</span> Tambahkan halaman ▾
+            </button>
+
+            <div class="canvas-zoom-wrapper">
+              <span class="zoom-text" id="zoomPercentage">64%</span>
+              <input type="range" class="zoom-slider" id="zoomSlider" min="30" max="120" value="64" />
+              <span class="zoom-pages-label">Pages</span>
+            </div>
           </div>
         </section>
       </div>
-
-      <!-- BOTTOM FLOATING PROMPT INPUT BOX (Canva Magic Studio Style) -->
-      <footer class="bottom-prompt-wrapper">
-        <div class="prompt-box-container">
-          <!-- Textarea -->
-          <textarea
-            id="chatPromptInput"
-            class="chat-prompt-textarea"
-            rows="1"
-            placeholder="Tugas apa yang harus kita selesaikan selanjutnya?"
-          ></textarea>
-
-          <!-- Action bar inside bottom of input box -->
-          <div class="prompt-actions-bar">
-            <div class="prompt-left-tools">
-              <!-- Quick Magic Menu (+) Button -->
-              <div class="quick-tools-wrapper">
-                <button class="btn-tool-circle" id="btnQuickTools" title="Fitur Cepat Wargative AI">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-
-                <!-- Popover Menu -->
-                <div class="quick-tools-popover" id="quickToolsPopover">
-                  <div class="popover-header">Fitur Cepat Wargative AI</div>
-                  <button class="popover-item" data-tool="magic-design">
-                    <span class="tool-icon">🪄</span>
-                    <div class="tool-info">
-                      <span class="tool-name">Magic Design</span>
-                      <span class="tool-sub">Konsep layout & buka di Studio</span>
-                    </div>
-                  </button>
-                  <button class="popover-item" data-tool="magic-copy">
-                    <span class="tool-icon">✍️</span>
-                    <div class="tool-info">
-                      <span class="tool-name">Magic Copywriter</span>
-                      <span class="tool-sub">Caption, Headline & Slogan</span>
-                    </div>
-                  </button>
-                  <button class="popover-item" data-tool="smart-palette">
-                    <span class="tool-icon">🎨</span>
-                    <div class="tool-info">
-                      <span class="tool-name">Smart Color Palette</span>
-                      <span class="tool-sub">5 perpaduan HEX & Gradient</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Mode Pills -->
-              <div class="active-mode-pill" id="activeModePill" style="display: none;">
-                <span id="activeModeText">Magic Design</span>
-                <button id="btnClearMode" title="Reset Mode">&times;</button>
-              </div>
-            </div>
-
-            <div class="prompt-right-tools">
-              <!-- Microphone Button -->
-              <button class="btn-tool-circle btn-mic" id="btnVoiceMic" title="Bicara (Speech-to-Text)">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              </button>
-
-              <!-- Send Button -->
-              <button class="btn-send-prompt" id="btnSendPrompt" title="Kirim ke Wargative AI (Enter)">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </footer>
     </main>
 
     <!-- Toast Notifications -->
