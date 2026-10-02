@@ -217,7 +217,10 @@
       } else {
         // CASE 2: Initial click - Directly launch Meta's Real OAuth Dialog!
         const redirectUri = window.location.origin + '/oauth-popup.html';
-        const scope = 'pages_show_list';
+        let scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
+        if (channel === 'instagram') {
+          scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish';
+        }
         const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
         
         // Instant redirect to Facebook!

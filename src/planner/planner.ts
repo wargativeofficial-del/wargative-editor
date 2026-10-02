@@ -1487,6 +1487,10 @@ class WargativeContentPlanner {
           if (result.id) {
             realPublishSuccess = true;
             publishedPostId = result.id;
+          } else if (result.error) {
+            console.error('Meta Facebook Page Post Error:', result.error);
+            this.showToast(`⚠️ Meta Error: ${result.error.message || 'Izin posting ditolak'}`, 6000);
+            return;
           }
         } else if (post.channel === 'instagram') {
           // Step 1: Create Container
@@ -1514,25 +1518,31 @@ class WargativeContentPlanner {
             if (pData.id) {
               realPublishSuccess = true;
               publishedPostId = pData.id;
+            } else if (pData.error) {
+              this.showToast(`⚠️ Instagram Error: ${pData.error.message}`, 6000);
+              return;
             }
+          } else if (cData.error) {
+            this.showToast(`⚠️ Instagram Error: ${cData.error.message}`, 6000);
+            return;
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn('Direct Meta API publish attempt:', err);
+        this.showToast(`⚠️ Gagal menghubungi server Meta: ${err?.message || 'Network error'}`);
+        return;
       }
     }
 
-    setTimeout(() => {
-      post.status = 'published';
-      saveScheduledPost(post);
-      this.renderCalendar();
+    post.status = 'published';
+    saveScheduledPost(post);
+    this.renderCalendar();
 
-      if (realPublishSuccess) {
-        this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" TAYANG LANGSUNG di ${post.channelName} (${conn.handle})! ID: ${publishedPostId} 🚀`, 5000);
-      } else {
-        this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" berhasil dipublikasikan ke ${post.channelName} (${conn.handle})! 🚀`, 4000);
-      }
-    }, 1200);
+    if (realPublishSuccess) {
+      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" TAYANG LIVE di Halaman ${conn.handle}! ID: ${publishedPostId} 🚀`, 6000);
+    } else {
+      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke ${post.channelName}! 🚀`, 4000);
+    }
   }
 
   // Auto-Publisher Background Scheduler
