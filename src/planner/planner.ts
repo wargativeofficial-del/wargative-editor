@@ -19,7 +19,7 @@ import {
   saveSocialConnection,
   disconnectSocialConnection
 } from '../common/plannerStore';
-import { getProjects, ProjectItem } from '../common/projectStore';
+import { getProjects, getProjectScene, ProjectItem } from '../common/projectStore';
 import { authUI } from '../common/authUI';
 import { getCurrentUser, getAuthHeader, onAuthStateChange } from '../common/authClient';
 
@@ -279,6 +279,14 @@ class WargativeContentPlanner {
   private formScheduledDate: Date = new Date();
   private formScheduledTime: string = '15:10';
   private formSelectedChannel: SocialChannelDef = SOCIAL_CHANNELS[0];
+  private formSelectedConnection: {
+    id: string;
+    platform: string;
+    accountName: string;
+    accountHandle: string;
+    status: string;
+    avatarUrl?: string;
+  } | null = null;
   private miniCalViewDate: Date = new Date();
   private serverConnections: Array<{
     id: string;
@@ -667,6 +675,15 @@ class WargativeContentPlanner {
     this.renderModalProjects();
     this.renderModalTemplates();
 
+    // Default to the first connected Instagram account if available
+    if (!this.formSelectedConnection) {
+      const igConn = this.serverConnections.find((c) => c.platform === 'instagram' && c.status === 'connected');
+      if (igConn) {
+        this.formSelectedConnection = igConn;
+        this.formSelectedChannel = SOCIAL_CHANNELS[0];
+      }
+    }
+
     this.showViewMainForm();
     this.updateSelectedPreview();
     this.updateDateTimeButtonText();
@@ -813,13 +830,13 @@ class WargativeContentPlanner {
 
   private updateChannelButtonText() {
     if (!this.channelDisplaySpan) return;
-    const serverConn = this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id);
-    const isConn = Boolean(serverConn && serverConn.status === 'connected');
+    const isConn = Boolean(this.formSelectedConnection && this.formSelectedConnection.status === 'connected');
+    const handle = this.formSelectedConnection ? this.formSelectedConnection.accountHandle : '';
 
     this.channelDisplaySpan.innerHTML = `
       <span style="font-size: 16px;">${this.formSelectedChannel.icon}</span>
       <span>${this.formSelectedChannel.name}</span>
-      ${isConn && serverConn ? `<span style="font-size: 11px; color: #059669; font-weight: 700; margin-left: 4px;">(● ${serverConn.accountHandle})</span>` : `<span style="font-size: 11px; color: #dc2626; margin-left: 4px;">(Belum Terhubung)</span>`}
+      ${isConn && this.formSelectedConnection ? `<span style="font-size: 11px; color: #059669; font-weight: 700; margin-left: 4px;">(● ${handle})</span>` : `<span style="font-size: 11px; color: #dc2626; margin-left: 4px;">(Belum Terhubung)</span>`}
     `;
   }
 
@@ -881,53 +898,89 @@ class WargativeContentPlanner {
     this.channelListOptionsContainer.innerHTML = '';
 
     SOCIAL_CHANNELS.forEach((channel) => {
-      const serverConn = this.serverConnections.find((c) => c.platform === channel.id);
-      const isConn = Boolean(serverConn && serverConn.status === 'connected');
-      const handle = serverConn ? serverConn.accountHandle : '';
+      const channelConns = this.serverConnections.filter((c) => c.platform === channel.id && c.status === 'connected');
 
-      const row = document.createElement('div');
-      row.className = 'channel-option-row';
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.justifyContent = 'space-between';
+      if (channelConns.length > 0) {
+        channelConns.forEach((conn) => {
+          const isSelected = this.formSelectedConnection?.id === conn.id;
+          const row = document.createElement('div');
+          row.className = `channel-option-row ${isSelected ? 'selected' : ''}`;
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.justifyContent = 'space-between';
+          row.style.padding = '8px 12px';
+          row.style.borderRadius = '8px';
+          row.style.cursor = 'pointer';
 
-      row.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="channel-icon-circle" style="background: ${channel.color}18; color: ${channel.color};">
-            ${channel.icon}
+          row.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="channel-icon-circle" style="background: ${channel.color}18; color: ${channel.color};">
+                ${channel.icon}
+              </div>
+              <div style="display: flex; flex-direction: column;">
+                <span class="channel-name-title">${channel.name}</span>
+                <span style="font-size: 11px; color: #059669; font-weight: 700;">
+                  ● Terhubung (${conn.accountHandle})
+                </span>
+              </div>
+            </div>
+            <div>
+              ${
+                isSelected
+                  ? `<span style="font-size: 12px; font-weight: 700; color: #059669;">Dipilih ✓</span>`
+                  : `<span style="font-size: 12px; font-weight: 700; color: #7047eb;">Pilih &rsaquo;</span>`
+              }
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            this.formSelectedChannel = channel;
+            this.formSelectedConnection = conn;
+            this.updateChannelButtonText();
+            this.showViewMainForm();
+          });
+
+          this.channelListOptionsContainer.appendChild(row);
+        });
+      } else {
+        const row = document.createElement('div');
+        row.className = 'channel-option-row';
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '8px 12px';
+        row.style.borderRadius = '8px';
+
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="channel-icon-circle" style="background: ${channel.color}18; color: ${channel.color};">
+              ${channel.icon}
+            </div>
+            <div style="display: flex; flex-direction: column;">
+              <span class="channel-name-title">${channel.name}</span>
+              <span style="font-size: 11px; color: #6b7280;">
+                Belum Terhubung
+              </span>
+            </div>
           </div>
-          <div style="display: flex; flex-direction: column;">
-            <span class="channel-name-title">${channel.name}</span>
-            <span style="font-size: 11px; color: ${isConn ? '#059669' : '#6b7280'}; font-weight: ${isConn ? '700' : 'normal'};">
-              ${isConn ? `● Terhubung (${handle})` : 'Belum Terhubung'}
-            </span>
+          <div>
+            <button type="button" class="btn-channel-action connect" style="padding: 4px 10px; font-size: 11px;">+ Hubungkan</button>
           </div>
-        </div>
-        <div>
-          ${
-            isConn
-              ? `<span style="font-size: 12px; font-weight: 700; color: #7047eb;">Pilih &rsaquo;</span>`
-              : `<button type="button" class="btn-channel-action connect" style="padding: 4px 10px; font-size: 11px;">+ Hubungkan</button>`
+        `;
+
+        row.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          if (target && target.classList.contains('connect')) {
+            e.stopPropagation();
+            this.closeScheduleModal();
+            this.openConnectSocialModal();
+            this.showStepConnectFlow(channel);
+            return;
           }
-        </div>
-      `;
+        });
 
-      row.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        if (target && target.classList.contains('connect')) {
-          e.stopPropagation();
-          this.closeScheduleModal();
-          this.openConnectSocialModal();
-          this.showStepConnectFlow(channel);
-          return;
-        }
-
-        this.formSelectedChannel = channel;
-        this.updateChannelButtonText();
-        this.showViewMainForm();
-      });
-
-      this.channelListOptionsContainer.appendChild(row);
+        this.channelListOptionsContainer.appendChild(row);
+      }
     });
   }
 
@@ -1029,6 +1082,16 @@ class WargativeContentPlanner {
       console.warn('Gagal mengambil koneksi dari backend:', err);
       this.serverConnections = [];
     }
+
+    if (!this.formSelectedConnection) {
+      this.formSelectedConnection = this.serverConnections.find((c) => c.platform === 'instagram' && c.status === 'connected') || null;
+    } else {
+      const stillExists = this.serverConnections.find((c) => c.id === this.formSelectedConnection?.id && c.status === 'connected');
+      if (!stillExists) {
+        this.formSelectedConnection = this.serverConnections.find((c) => c.platform === 'instagram' && c.status === 'connected') || null;
+      }
+    }
+
     this.renderConnectSocialList();
     this.updateChannelButtonText();
     this.renderChannelOptionsList();
@@ -1468,6 +1531,208 @@ class WargativeContentPlanner {
   }
 
   // ==========================================================================
+  // Media Pipeline: Export Project & Upload to Supabase Storage
+  // ==========================================================================
+  private async exportProjectToJpegBlob(project: ProjectItem | null, template: any | null): Promise<Blob> {
+    // 1. Strict export for user projects containing CE.SDK scenes
+    if (project?.id) {
+      const sceneString = getProjectScene(project.id);
+      if (sceneString) {
+        let engine: any = null;
+        try {
+          const CreativeEngine = (await import('@cesdk/engine')).default;
+          engine = await CreativeEngine.init({
+            license: 'vERESgSXbYj5Rs-FF4DzkMvhdQLh0Mxe6AD8V-doP6wqe_gmYmx_oUKqIlMkwpMu'
+          });
+          await engine.scene.loadFromString(sceneString);
+          const scene = engine.scene.get();
+          if (!scene) {
+            throw new Error('Scene tidak ditemukan di memori editor.');
+          }
+          const blob = await engine.block.export(scene, { mimeType: 'image/jpeg' });
+          if (blob && blob.size > 0) {
+            return blob;
+          }
+          throw new Error('Hasil ekspor gambar kosong.');
+        } catch (cesdkErr: any) {
+          console.error('[Planner] CE.SDK headless export error:', cesdkErr);
+          // STRICT: Do NOT fallback to generic Canvas for user designs!
+          throw new Error(`Gagal mengekspor desain dari editor. Penerbitan dibatalkan agar tidak mengunggah konten yang salah ke Instagram. (${cesdkErr?.message || 'Export error'})`);
+        } finally {
+          if (engine) {
+            try { engine.dispose(); } catch {}
+          }
+        }
+      }
+    }
+
+    // 2. High-Fidelity Canvas Renderer Fallback
+    // Only used for items that do not have a sceneString (e.g. curated text templates)
+    return new Promise<Blob>((resolve, reject) => {
+      try {
+        const isPortrait = project?.format?.includes('4:5') || project?.height === 1350;
+        const width = 1080;
+        const height = isPortrait ? 1350 : 1080;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('Gagal menginisialisasi canvas grafis untuk export gambar.'));
+        }
+
+        // Draw background gradient
+        const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+        if (project?.previewType === 'horor') {
+          bgGrad.addColorStop(0, '#09090b');
+          bgGrad.addColorStop(1, '#18181b');
+        } else if (project?.previewType === 'green') {
+          bgGrad.addColorStop(0, '#064e3b');
+          bgGrad.addColorStop(1, '#10b981');
+        } else if (project?.thumbnailColor && project.thumbnailColor.startsWith('#')) {
+          bgGrad.addColorStop(0, project.thumbnailColor);
+          bgGrad.addColorStop(1, '#1e1b4b');
+        } else {
+          bgGrad.addColorStop(0, '#0f172a');
+          bgGrad.addColorStop(0.5, '#1e1b4b');
+          bgGrad.addColorStop(1, '#31104b');
+        }
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw ambient glow
+        ctx.save();
+        const radGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 50, width * 0.5, height * 0.45, 500);
+        radGrad.addColorStop(0, 'rgba(112, 71, 235, 0.35)');
+        radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = radGrad;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+
+        // Draw card container
+        const cardMargin = 80;
+        const cardW = width - cardMargin * 2;
+        const cardH = height - cardMargin * 2;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(cardMargin, cardMargin, cardW, cardH, 32);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw icon / emoji
+        const icon = project?.thumbnailIcon || template?.accent || '✨';
+        ctx.font = '96px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, width / 2, height * 0.36);
+
+        // Draw Title text with word wrap
+        const title = project?.title || template?.title || 'Wargative Creative Post';
+        ctx.font = 'bold 52px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const words = title.split(' ');
+        let line = '';
+        const lines: string[] = [];
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > cardW - 120 && n > 0) {
+            lines.push(line);
+            line = words[n] + ' ';
+          } else {
+            line = testLine;
+          }
+        }
+        lines.push(line);
+
+        const startY = height * 0.52;
+        lines.forEach((l, idx) => {
+          ctx.fillText(l.trim(), width / 2, startY + idx * 64);
+        });
+
+        // Draw Badge
+        const badge = project?.badgeText || 'Instagram Post';
+        ctx.save();
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, sans-serif';
+        const badgeMetrics = ctx.measureText(badge);
+        const badgeW = badgeMetrics.width + 48;
+        const badgeH = 46;
+        const badgeX = width / 2 - badgeW / 2;
+        const badgeY = height * 0.72;
+        ctx.fillStyle = 'rgba(112, 71, 235, 0.85)';
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 23);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(badge, width / 2, badgeY + badgeH / 2 + 2);
+        ctx.restore();
+
+        // Draw watermark / branding at bottom
+        ctx.font = '600 22px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.fillText('Created with Wargative Studio', width / 2, height - 120);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Gagal mengonversi canvas ke format JPEG.'));
+            }
+          },
+          'image/jpeg',
+          0.95
+        );
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  private async uploadMediaToStorage(blob: Blob): Promise<string> {
+    const authHeaders = await getAuthHeader();
+    if (!authHeaders.Authorization) {
+      throw new Error('Sesi Anda belum terautentikasi. Silakan login ke akun Wargative.');
+    }
+
+    const reader = new FileReader();
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const res = await fetch('/api/media/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({
+        imageBase64: base64Data,
+        mimeType: 'image/jpeg'
+      })
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.success || !data?.url) {
+      const errMsg = data?.message || data?.error || 'Gagal mengunggah media ke server storage.';
+      throw new Error(errMsg);
+    }
+
+    return data.url;
+  }
+
+  // ==========================================================================
   // Submit Scheduled Post & Auto-Publish Engine
   // ==========================================================================
   private async submitSchedule(isImmediate: boolean) {
@@ -1476,10 +1741,16 @@ class WargativeContentPlanner {
       return;
     }
 
-    // Check if selected channel is connected in database
-    const serverConn = this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id);
-    const isConn = Boolean(serverConn && serverConn.status === 'connected');
-    if (!isConn) {
+    // Verify channel and account connection
+    if (isImmediate && this.formSelectedChannel.id !== 'instagram') {
+      this.showToast(`Penerbitan instan saat ini khusus untuk Instagram Business. Saluran ${this.formSelectedChannel.name} akan tersedia di tahap selanjutnya.`);
+      return;
+    }
+
+    const targetConn = this.formSelectedConnection || this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id && c.status === 'connected');
+    const isConn = Boolean(targetConn && targetConn.status === 'connected');
+
+    if (!isConn || !targetConn) {
       this.showToast(`⚠️ Akun ${this.formSelectedChannel.name} belum terhubung! Silakan hubungkan akun Anda terlebih dahulu.`);
       this.openConnectSocialModal();
       return;
@@ -1504,7 +1775,7 @@ class WargativeContentPlanner {
       thumbnailColor: thumbColor,
       thumbnailIcon: thumbIcon,
       previewType: previewType,
-      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1080&auto=format&fit=crop&q=80',
+      imageUrl: '',
       channel: this.formSelectedChannel.id,
       channelName: this.formSelectedChannel.name,
       channelIcon: this.formSelectedChannel.icon,
@@ -1516,25 +1787,70 @@ class WargativeContentPlanner {
       createdAt: Date.now()
     };
 
-    saveScheduledPost(newPost);
-    this.closeScheduleModal();
-    this.renderCalendar();
-
-    const handle = serverConn?.accountHandle || serverConn?.accountName || this.formSelectedChannel.name;
     if (isImmediate) {
-      this.executePublishPost(newPost, handle);
+      await this.executePublishPost(newPost, targetConn.id, targetConn.accountHandle);
     } else {
-      this.showToast(`📅 Postingan "${title}" berhasil dijadwalkan ke ${this.formSelectedChannel.name} (${handle}) pada ${d} ${MONTH_NAMES_ID[this.formScheduledDate.getMonth()]} pukul ${newPost.timeStr}!`);
+      saveScheduledPost(newPost);
+      this.closeScheduleModal();
+      this.renderCalendar();
+      this.showToast(`📅 Postingan "${title}" berhasil dijadwalkan ke ${this.formSelectedChannel.name} (${targetConn.accountHandle}) pada ${d} ${MONTH_NAMES_ID[this.formScheduledDate.getMonth()]} pukul ${newPost.timeStr}!`);
     }
   }
 
-  // Executes actual publish to Social Media Channel
-  private async executePublishPost(post: ScheduledPost, accountHandle: string) {
-    this.showToast(`📤 Mengunggah postingan ke ${post.channelName} (${accountHandle})...`);
-    post.status = 'published';
-    saveScheduledPost(post);
-    this.renderCalendar();
-    this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke ${post.channelName} (${accountHandle})! 🚀`, 4000);
+  // Executes actual publish to Instagram via Meta Graph API
+  private async executePublishPost(post: ScheduledPost, connectionId: string, accountHandle: string) {
+    const originalText = this.btnPublishNow.innerHTML;
+    try {
+      this.btnPublishNow.disabled = true;
+      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Memproses...`;
+
+      this.showToast(`🎨 Mengekspor gambar desain...`);
+      const imageBlob = await this.exportProjectToJpegBlob(this.selectedProject, this.selectedCuratedTemplate);
+
+      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah...`;
+      this.showToast(`☁️ Mengunggah gambar ke penyimpanan server...`);
+      const publicImageUrl = await this.uploadMediaToStorage(imageBlob);
+      post.imageUrl = publicImageUrl;
+
+      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">📤</span> Menerbitkan...`;
+      this.showToast(`📤 Mengirim konten ke Meta Instagram API (${accountHandle})...`);
+
+      const authHeaders = await getAuthHeader();
+      const publishRes = await fetch('/api/publish/instagram', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({
+          connectionId: connectionId,
+          imageUrl: publicImageUrl,
+          caption: post.caption
+        })
+      });
+
+      const publishData = await publishRes.json().catch(() => null);
+
+      if (!publishRes.ok || !publishData?.success) {
+        const errDetail = publishData?.message || publishData?.error || 'Meta menolak penerbitan postingan.';
+        throw new Error(errDetail);
+      }
+
+      // Successful publish
+      post.status = 'published';
+      saveScheduledPost(post);
+      this.closeScheduleModal();
+      this.renderCalendar();
+
+      const permalinkNotice = publishData.permalink ? `<br/><a href="${publishData.permalink}" target="_blank" style="color:#60a5fa; text-decoration:underline;">Buka Postingan di Instagram &rsaquo;</a>` : '';
+      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke Instagram (${accountHandle})! 🚀${permalinkNotice}`, 7000);
+    } catch (err: any) {
+      console.error('[Planner] Publish error:', err);
+      this.showToast(`❌ Gagal menerbitkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
+    } finally {
+      this.btnPublishNow.disabled = false;
+      this.btnPublishNow.innerHTML = originalText;
+    }
   }
 
   // Auto-Publisher Background Scheduler
@@ -1617,7 +1933,7 @@ class WargativeContentPlanner {
       if (serverConn && serverConn.status === 'connected') {
         this.postDetailDialogOverlay.classList.remove('active');
         const handle = serverConn.accountHandle || serverConn.accountName || post.channelName;
-        this.executePublishPost(post, handle);
+        this.executePublishPost(post, serverConn.id, handle);
       } else {
         this.showToast(`⚠️ Saluran ${post.channelName} belum terhubung! Silakan hubungkan dulu.`);
       }
