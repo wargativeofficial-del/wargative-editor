@@ -293,7 +293,7 @@
 
         <div class="meta-real-app-box" id="realAppNoticeBox">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <span>🔒 <strong>Meta App ID Resmi</strong>: <code>1077172458260514</code></span>
+            <span>🔒 <strong>Meta App ID Resmi</strong>: <code>1074079788556384</code></span>
           </div>
           <button
             type="button"
@@ -323,7 +323,7 @@
     </div>
 
     <script>
-      const META_APP_ID = '1077172458260514';
+      const META_APP_ID = '1074079788556384';
 
       // Parse Query & Hash Parameters
       const urlParams = new URLSearchParams(window.location.search);
@@ -427,8 +427,14 @@
         if (channel === 'instagram' || channel === 'facebook' || channel === 'threads') {
           btnDirectMetaOAuth.addEventListener('click', () => {
             const redirectUri = window.location.origin + '/oauth-popup.html';
-            // Default to safe public_profile & email so Meta dialog loads without 'Invalid Scopes' error
-            const scope = 'public_profile,email';
+            let scope = 'public_profile,email';
+            if (channel === 'instagram') {
+              scope = 'public_profile,email,pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish';
+            } else if (channel === 'facebook') {
+              scope = 'public_profile,email,pages_show_list,pages_read_engagement,pages_manage_posts';
+            } else if (channel === 'threads') {
+              scope = 'public_profile,email,threads_basic,threads_content_publish';
+            }
             const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
             window.location.href = authUrl;
           });
