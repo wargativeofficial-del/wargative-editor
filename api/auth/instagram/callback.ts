@@ -100,30 +100,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const shortLivedToken = tokenData.access_token;
     const rawUserId = String(tokenData.user_id || '');
 
-    // 5. Exchange for Long-Lived User Access Token (~60 days validity)
-    const longLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(instagramAppSecret)}&access_token=${encodeURIComponent(shortLivedToken)}`;
-    const longLivedRes = await fetch(longLivedUrl);
-    const longLivedData = await longLivedRes.json();
+    // 5. Exchange for Long-Lived User Access Token
+    // Dynamic Graph API version (default v21.0 or from env)
+    const apiVersion = process.env.META_GRAPH_VERSION || 'v21.0';
+    
+    // Attempt versioned GET request to https://graph.instagram.com/{apiVersion}/access_token
+    const longLivedUrl = `https://graph.instagram.com/${apiVersion}/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(instagramAppSecret)}&access_token=${encodeURIComponent(shortLivedToken)}`;
+    let longLivedRes = await fetch(longLivedUrl, { method: 'GET' });
+    let longLivedData = await longLivedRes.json().catch(() => null);
 
-    if (longLivedData.error) {
-      console.warn('[API /auth/instagram/callback] Gagal menukar long-lived token, fallback ke short-lived token:', longLivedData.error);
+    // If versioned GET returns error, retry via POST application/x-www-form-urlencoded
+    if (!longLivedData || longLivedData.error || !longLivedData.access_token) {
+      console.warn('[API /auth/instagram/callback] GET long-lived exchange failed, retrying via POST:', longLivedData?.error);
+      const postBody = new URLSearchParams({
+        grant_type: 'ig_exchange_token',
+        client_secret: instagramAppSecret,
+        access_token: shortLivedToken
+      });
+      const postRes = await fetch(`https://graph.instagram.com/${apiVersion}/access_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: postBody.toString()
+      });
+      const postData = await postRes.json().catch(() => null);
+      if (postData && postData.access_token) {
+        longLivedData = postData;
+      }
     }
 
-    const finalAccessToken = longLivedData.access_token || shortLivedToken;
-    const expiresInSec = longLivedData.expires_in || (60 * 24 * 3600); // Default to 60 days
+    // STRICT: Do NOT fallback to short-lived token!
+    if (!longLivedData || longLivedData.error || !longLivedData.access_token) {
+      const exchangeErrMsg = longLivedData?.error?.message || 'Gagal menukar authorization code ke long-lived access token.';
+      console.error('[API /auth/instagram/callback] Long-lived token exchange failed strictly:', longLivedData?.error);
+      return res.redirect(`/planner.html?meta_error=${encodeURIComponent('Gagal mendapatkan token permanen Instagram: ' + exchangeErrMsg)}`);
+    }
+
+    const finalAccessToken = longLivedData.access_token;
+    // Derive exact token expiration from Meta response (expires_in in seconds)
+    const expiresInSec = Number(longLivedData.expires_in) || (60 * 24 * 3600);
     const tokenExpiresAt = new Date(Date.now() + expiresInSec * 1000).toISOString();
 
     // 6. Fetch Instagram User Profile
-    const profileUrl = `https://graph.instagram.com/me?fields=user_id,username,name,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
-    const profileRes = await fetch(profileUrl);
-    const profileData = await profileRes.json();
+    // Use target user ID from Step 1 or 'me' on the versioned Graph API node
+    // Request valid fields: id, username, account_type, name
+    const targetNode = rawUserId || 'me';
+    let profileUrl = `https://graph.instagram.com/${apiVersion}/${targetNode}?fields=id,username,name,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
+    let profileRes = await fetch(profileUrl);
+    let profileData = await profileRes.json().catch(() => null);
 
-    if (profileData.error) {
-      console.error('[API /auth/instagram/callback] Profile fetch error:', profileData.error);
-      return res.redirect(`/planner.html?meta_error=${encodeURIComponent(profileData.error.message || 'Gagal mengambil profil Instagram.')}`);
+    // If extra fields are not permitted by app mode, retry with core fields: id,username,account_type
+    if (!profileData || profileData.error) {
+      console.warn('[API /auth/instagram/callback] Profile fetch with full fields failed, retrying with core fields:', profileData?.error);
+      const coreProfileUrl = `https://graph.instagram.com/${apiVersion}/${targetNode}?fields=id,username,account_type&access_token=${encodeURIComponent(finalAccessToken)}`;
+      const coreRes = await fetch(coreProfileUrl);
+      const coreData = await coreRes.json().catch(() => null);
+      if (coreData && !coreData.error) {
+        profileData = coreData;
+      }
     }
 
-    const igUserId = String(profileData.user_id || profileData.id || rawUserId);
+    if (!profileData || profileData.error) {
+      const profileErrMsg = profileData?.error?.message || 'Gagal membaca profil akun Instagram dari server Meta.';
+      console.error('[API /auth/instagram/callback] Profile fetch error:', profileData?.error);
+      return res.redirect(`/planner.html?meta_error=${encodeURIComponent(profileErrMsg)}`);
+    }
+
+    const igUserId = String(profileData.id || profileData.user_id || rawUserId);
     const igUsername = profileData.username || 'instagram_user';
     const igName = profileData.name || igUsername;
     const igAccountType = profileData.account_type || 'BUSINESS';
