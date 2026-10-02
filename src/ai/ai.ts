@@ -48,6 +48,7 @@ class WargativeAIChatManager {
   private btnQuickTools!: HTMLButtonElement;
   private quickToolsPopover!: HTMLElement;
   private btnVoiceMic!: HTMLButtonElement;
+  private btnCarouselPrev!: HTMLButtonElement;
   private btnCarouselNext!: HTMLButtonElement;
   private cardsCarouselTrack!: HTMLElement;
   private activeModePill!: HTMLElement;
@@ -75,6 +76,7 @@ class WargativeAIChatManager {
     this.btnQuickTools = document.getElementById('btnQuickTools') as HTMLButtonElement;
     this.quickToolsPopover = document.getElementById('quickToolsPopover') as HTMLElement;
     this.btnVoiceMic = document.getElementById('btnVoiceMic') as HTMLButtonElement;
+    this.btnCarouselPrev = document.getElementById('btnCarouselPrev') as HTMLButtonElement;
     this.btnCarouselNext = document.getElementById('btnCarouselNext') as HTMLButtonElement;
     this.cardsCarouselTrack = document.getElementById('cardsCarouselTrack') as HTMLElement;
     this.activeModePill = document.getElementById('activeModePill') as HTMLElement;
@@ -531,12 +533,26 @@ Format jawabanmu dengan Markdown yang indah, sertakan poin-poin terstruktur, rek
       });
     });
 
-    // Carousel Next Arrow Button
-    this.btnCarouselNext?.addEventListener('click', () => {
+    // Carousel Prev & Next Arrow Buttons
+    this.btnCarouselPrev?.addEventListener('click', () => {
       if (this.cardsCarouselTrack) {
-        this.cardsCarouselTrack.scrollBy({ left: 260, behavior: 'smooth' });
+        this.cardsCarouselTrack.scrollBy({ left: -280, behavior: 'smooth' });
       }
     });
+
+    this.btnCarouselNext?.addEventListener('click', () => {
+      if (this.cardsCarouselTrack) {
+        this.cardsCarouselTrack.scrollBy({ left: 280, behavior: 'smooth' });
+      }
+    });
+
+    // Track scroll listener to toggle arrow visibility
+    this.cardsCarouselTrack?.addEventListener('scroll', () => {
+      this.updateCarouselArrows();
+    });
+
+    // Initial check
+    setTimeout(() => this.updateCarouselArrows(), 100);
 
     // Quick Tools (+) Popover Toggle
     this.btnQuickTools?.addEventListener('click', (e) => {
@@ -582,6 +598,34 @@ Format jawabanmu dengan Markdown yang indah, sertakan poin-poin terstruktur, rek
     this.btnVoiceMic?.addEventListener('click', () => {
       this.toggleVoiceInput();
     });
+  }
+
+  private updateCarouselArrows() {
+    if (!this.cardsCarouselTrack) return;
+    const scrollLeft = this.cardsCarouselTrack.scrollLeft;
+    const maxScrollLeft = this.cardsCarouselTrack.scrollWidth - this.cardsCarouselTrack.clientWidth;
+
+    // Toggle Left Arrow
+    if (this.btnCarouselPrev) {
+      if (scrollLeft > 15) {
+        this.btnCarouselPrev.style.opacity = '1';
+        this.btnCarouselPrev.style.pointerEvents = 'auto';
+      } else {
+        this.btnCarouselPrev.style.opacity = '0';
+        this.btnCarouselPrev.style.pointerEvents = 'none';
+      }
+    }
+
+    // Toggle Right Arrow
+    if (this.btnCarouselNext) {
+      if (scrollLeft < maxScrollLeft - 15) {
+        this.btnCarouselNext.style.opacity = '1';
+        this.btnCarouselNext.style.pointerEvents = 'auto';
+      } else {
+        this.btnCarouselNext.style.opacity = '0';
+        this.btnCarouselNext.style.pointerEvents = 'none';
+      }
+    }
   }
 
   private setMode(modeKey: string, modeLabel: string) {
