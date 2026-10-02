@@ -112,12 +112,26 @@ CREATE POLICY "Users can delete their own social connections"
 
 -- Policy untuk public.oauth_states:
 DROP POLICY IF EXISTS "Users can manage their own oauth states" ON public.oauth_states;
-CREATE POLICY "Users can manage their own oauth states"
+DROP POLICY IF EXISTS "Users can view their own oauth states" ON public.oauth_states;
+CREATE POLICY "Users can view their own oauth states"
     ON public.oauth_states
-    FOR ALL
+    FOR SELECT
     TO authenticated
-    USING (auth.uid() = user_id)
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own oauth states" ON public.oauth_states;
+CREATE POLICY "Users can insert their own oauth states"
+    ON public.oauth_states
+    FOR INSERT
+    TO authenticated
     WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own oauth states" ON public.oauth_states;
+CREATE POLICY "Users can delete their own oauth states"
+    ON public.oauth_states
+    FOR DELETE
+    TO authenticated
+    USING (auth.uid() = user_id);
 
 -- Policy untuk public.scheduled_posts:
 DROP POLICY IF EXISTS "Users can view their own scheduled posts" ON public.scheduled_posts;
