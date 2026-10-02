@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const files = [
   'node_modules/@cesdk/cesdk-js/assets/core/worker-host-v1.83.0.js',

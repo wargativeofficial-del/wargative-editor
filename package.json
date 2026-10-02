@@ -1,6 +1,7 @@
 {
   "name": "wargative-editor",
   "version": "1.0.0",
+  "type": "module",
   "description": "Wargative Editor - Powerful Canva-like Design Studio by Bayu Pamungkas",
   "author": "Bayu Pamungkas",
   "scripts": {

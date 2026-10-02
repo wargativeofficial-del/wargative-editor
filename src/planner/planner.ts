@@ -1015,8 +1015,13 @@ class WargativeContentPlanner {
       const headers = await getAuthHeader();
       const res = await fetch('/api/social/connections', { headers });
       if (res.ok) {
-        const data = await res.json();
-        this.serverConnections = data.connections || [];
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json().catch(() => null);
+          this.serverConnections = data?.connections || [];
+        } else {
+          this.serverConnections = [];
+        }
       } else {
         this.serverConnections = [];
       }
@@ -1043,15 +1048,27 @@ class WargativeContentPlanner {
     try {
       const headers = await getAuthHeader();
       const res = await fetch(`/api/auth/meta/login?platform=${platform}`, { headers });
-      const data = await res.json();
 
-      if (res.ok && data.authUrl) {
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText = '';
+
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        rawText = await res.text().catch(() => '');
+      }
+
+      if (res.ok && data?.authUrl) {
         window.location.href = data.authUrl;
       } else {
-        this.showToast(`⚠️ Gagal memulai OAuth: ${data.message || 'Server error'}`);
+        const detailMsg = data?.message || data?.error || rawText || res.statusText || 'Server error';
+        console.error(`[Meta OAuth] Error HTTP ${res.status}:`, detailMsg);
+        this.showToast(`⚠️ Gagal memulai OAuth (HTTP ${res.status}): ${detailMsg}`, 7000);
       }
     } catch (err: any) {
-      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal menghubungi server'}`);
+      console.error('[Meta OAuth] Network exception:', err);
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal menghubungi server'}`, 7000);
     }
   }
 
@@ -1071,15 +1088,25 @@ class WargativeContentPlanner {
         body: JSON.stringify({ platform })
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText = '';
+
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        rawText = await res.text().catch(() => '');
+      }
+
+      if (res.ok && data?.success) {
         this.showToast(`Akun ${channelName} berhasil diputuskan. ✅`);
         await this.fetchServerConnections();
       } else {
-        this.showToast(`⚠️ Gagal memutuskan: ${data.message || 'Error server'}`);
+        const detailMsg = data?.message || data?.error || rawText || `HTTP ${res.status}`;
+        this.showToast(`⚠️ Gagal memutuskan (HTTP ${res.status}): ${detailMsg}`, 7000);
       }
     } catch (err: any) {
-      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal'}`);
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal'}`, 7000);
     }
   }
 
