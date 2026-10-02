@@ -652,10 +652,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnOpenModal?.addEventListener('click', () => openModal('foryou'));
   btnCloseModal?.addEventListener('click', closeModal);
-  navTemplatesBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    openModal('foryou');
-  });
 
   [modalBackdrop, detailsModal, brandModal, helpModal].forEach((modal) => {
     modal?.addEventListener('click', (e) => {
@@ -755,21 +751,6 @@ document.addEventListener('DOMContentLoaded', () => {
         (card as HTMLElement).style.display = 'none';
       }
     });
-  });
-
-  // Toggle pill buttons (Home / Templates)
-  const tabHomeToggle = document.getElementById('tabHomeToggle');
-  const tabTemplatesToggle = document.getElementById('tabTemplatesToggle');
-
-  tabHomeToggle?.addEventListener('click', () => {
-    tabHomeToggle.classList.add('active');
-    tabTemplatesToggle?.classList.remove('active');
-  });
-
-  tabTemplatesToggle?.addEventListener('click', () => {
-    tabTemplatesToggle.classList.add('active');
-    tabHomeToggle?.classList.remove('active');
-    openModal('foryou');
   });
 
   // Hook all preset cards & category items to createAndOpenProject

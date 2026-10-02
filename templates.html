@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🎨</text></svg>"
+    />
+    <meta name="author" content="Bayu Pamungkas" />
+    <meta name="description" content="Wargative Templates - Canva Style Template Explorer by Bayu Pamungkas" />
+    <title>Wargative Templates - Explore Professional Designs</title>
+    <link rel="stylesheet" href="./src/templates/templates.css" />
+  </head>
+  <body>
+    <!-- ====================================================================
+         SLIM SIDEBAR (Canva Style)
+         ==================================================================== -->
+    <aside class="sidebar">
+      <!-- Logo -->
+      <a href="./home.html" class="sidebar-logo" title="Wargative Home">W</a>
+
+      <!-- Create Button -->
+      <div class="create-btn-wrapper">
+        <button class="btn-create" onclick="window.location.href='./home.html?openCreate=true'" title="Create a design">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+        <span class="create-label">Create</span>
+      </div>
+
+      <!-- Navigation Icons -->
+      <nav class="sidebar-nav">
+        <a href="./home.html" class="nav-item" title="Home">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Home</span>
+        </a>
+
+        <a href="./home.html#projects" class="nav-item" title="Projects">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <span>Projects</span>
+        </a>
+
+        <a href="./templates.html" class="nav-item active" title="Templates">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+          </svg>
+          <span>Templates</span>
+        </a>
+
+        <a href="./home.html#brand" class="nav-item" title="Brand Kit">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          <span>Brand</span>
+        </a>
+
+        <a href="./index.html" class="nav-item" title="Open Studio Editor">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span>Editor</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <button class="help-btn" title="Help">?</button>
+        <div class="user-avatar" title="Wargative Official (Bayu Pamungkas)">W</div>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         MAIN CONTENT AREA
+         ==================================================================== -->
+    <main class="main-wrapper">
+      <!-- Top Header Bar -->
+      <div class="top-header-bar">
+        <button class="btn-pro-trial" id="btnProTrial">
+          <span>👑</span> Try Wargative Pro
+        </button>
+      </div>
+
+      <!-- Hero Banner -->
+      <section class="templates-hero">
+        <h1 class="hero-title">What will you design today?</h1>
+
+        <!-- Toggle Pill: Home vs Templates -->
+        <div class="tab-toggle-pill">
+          <a href="./home.html" class="toggle-pill-btn">
+            <span>🏠</span> Home
+          </a>
+          <a href="./templates.html" class="toggle-pill-btn active">
+            <span>🗂️</span> Templates
+          </a>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              id="templateSearchInput"
+              class="search-input"
+              placeholder="Search millions of templates (e.g. sale, event, yoga, fashion)..."
+            />
+          </div>
+        </div>
+
+        <!-- Quick Filter Pills -->
+        <div class="filter-pills-row">
+          <button class="filter-pill active" data-group="all">✨ All</button>
+          <button class="filter-pill" data-group="socials">❤️ Social media</button>
+          <button class="filter-pill" data-group="professional">💼 Business</button>
+          <button class="filter-pill" data-group="e-commerce">🛒 E-Commerce</button>
+          <button class="filter-pill" data-group="event">🎉 Event</button>
+          <button class="filter-pill" data-group="personal">✨ Personal</button>
+        </div>
+      </section>
+
+      <!-- Explore Templates Section (Matching Screenshot 1) -->
+      <section class="section-explore">
+        <div class="section-heading-row">
+          <h2 class="section-title">Explore templates</h2>
+        </div>
+
+        <div class="explore-grid-container">
+          <!-- Row 1 -->
+          <div class="explore-row">
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="presentation">
+              <span class="explore-card-label">Presentation</span>
+              <div class="explore-card-thumb" style="background:#fee2e2;">📊</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="instagram">
+              <span class="explore-card-label">Instagram Post</span>
+              <div class="explore-card-thumb" style="background:#fce7f3;">📸</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="resume">
+              <span class="explore-card-label">Resume</span>
+              <div class="explore-card-thumb" style="background:#e0e7ff;">📄</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="invitation">
+              <span class="explore-card-label">Invitation</span>
+              <div class="explore-card-thumb" style="background:#fef3c7;">💌</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="flyer">
+              <span class="explore-card-label">Flyer</span>
+              <div class="explore-card-thumb" style="background:#dcfce7;">📋</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="link">
+              <span class="explore-card-label">Link in Bio</span>
+              <div class="explore-card-thumb" style="background:#e0f2fe;">📱</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="video">
+              <span class="explore-card-label">Mobile Video</span>
+              <div class="explore-card-thumb" style="background:#fae8ff;">🎬</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="certificate">
+              <span class="explore-card-label">Certificate</span>
+              <div class="explore-card-thumb" style="background:#f1f5f9;">🏆</div>
+            </a>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="explore-row">
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="document">
+              <span class="explore-card-label">Document</span>
+              <div class="explore-card-thumb" style="background:#ede9fe;">📑</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="poster">
+              <span class="explore-card-label">Poster</span>
+              <div class="explore-card-thumb" style="background:#fef9c3;">🖼️</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="story">
+              <span class="explore-card-label">Your Story</span>
+              <div class="explore-card-thumb" style="background:#ffe4e6;">🌟</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="code">
+              <span class="explore-card-label">Code</span>
+              <div class="explore-card-thumb" style="background:#cffafe;">💻</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="logo">
+              <span class="explore-card-label">Logo</span>
+              <div class="explore-card-thumb" style="background:#f3e8ff;">🕊️</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="collage">
+              <span class="explore-card-label">Photo Collage</span>
+              <div class="explore-card-thumb" style="background:#e0e7ff;">📐</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="landscape">
+              <span class="explore-card-label">Landscape Video</span>
+              <div class="explore-card-thumb" style="background:#dbeafe;">🎞️</div>
+            </a>
+            <a href="javascript:void(0)" class="explore-pill-card" data-topic="brochure">
+              <span class="explore-card-label">Brochure</span>
+              <div class="explore-card-thumb" style="background:#ffedd5;">📰</div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Wargative Templates Galleries (E-Commerce, Event, Personal, Professional, Socials) -->
+      <div id="galleriesContainer"></div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Script -->
+    <script type="module" src="./src/templates/templates.ts"></script>
+  </body>
+</html>

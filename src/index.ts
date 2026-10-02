@@ -40,6 +40,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
     const urlParams = new URLSearchParams(window.location.search);
     let projectId = urlParams.get('id');
     const template = urlParams.get('template');
+    const templateUri = urlParams.get('templateUri');
     const widthParam = urlParams.get('w');
     const heightParam = urlParams.get('h');
     const nameParam = urlParams.get('name');
@@ -98,6 +99,29 @@ CreativeEditorSDK.create('#cesdk_container', config)
         await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
       }
+    } else if (templateUri) {
+      // Load specific archive template from Wargative library
+      console.log(`[Wargative] Loading template archive from ${templateUri}`);
+      try {
+        await cesdk.engine.scene.loadFromArchiveURL(templateUri);
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+      } catch (err) {
+        console.warn('[Wargative] loadFromArchiveURL failed, trying cesdk.load:', err);
+        try {
+          await cesdk.load(templateUri);
+          await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        } catch (e2) {
+          console.error('[Wargative] Failed to load template:', e2);
+          await cesdk.createDesignScene({ width: 1080, height: 1080, unit: 'Pixel' });
+          await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        }
+      }
+
+      // Save initial scene
+      try {
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {}
     } else if (template === 'marketing-ad' || projectId === 'proj_marketing_ad') {
       // Load marketing ad template
       await cesdk.load(`${DEMO_ASSETS_BASE_URL}/assets/4-5-marketing-ad/scene.scene`);
