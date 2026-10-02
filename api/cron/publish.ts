@@ -45,12 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const authHeader = req.headers.authorization || '';
+  const rawHeader = req.headers.authorization;
+  const authHeader = Array.isArray(rawHeader) ? rawHeader[0] : (rawHeader || '');
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
 
   let isAuthorized = false;
   try {
-    const bufExpected = Buffer.from(cronSecret);
+    const bufExpected = Buffer.from(cronSecret.trim());
     const bufToken = Buffer.from(token);
     if (bufExpected.length === bufToken.length && crypto.timingSafeEqual(bufExpected, bufToken)) {
       isAuthorized = true;
