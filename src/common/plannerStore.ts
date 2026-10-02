@@ -14,6 +14,12 @@ export interface SocialAccountConnection {
   accessToken?: string;
   accountId?: string;
   apiKey?: string;
+  availablePages?: Array<{
+    id: string;
+    name: string;
+    accessToken?: string;
+    instagram?: { id: string; username: string; name?: string } | null;
+  }>;
   connectedAt?: number;
 }
 

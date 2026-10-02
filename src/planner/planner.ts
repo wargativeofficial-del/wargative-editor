@@ -268,6 +268,8 @@ class WargativeContentPlanner {
   private configChannelAccountId!: HTMLInputElement;
   private configAccountIdLabel!: HTMLElement;
   private configGuideBox!: HTMLElement;
+  private configPageSelectGroup!: HTMLElement;
+  private selectConnectedPage!: HTMLSelectElement;
   private btnSaveChannelConfig!: HTMLElement;
   private btnInstantConnectChannel!: HTMLElement;
   private btnCancelChannelConfig!: HTMLElement;
@@ -371,12 +373,28 @@ class WargativeContentPlanner {
     this.configChannelAccountId = document.getElementById('configChannelAccountId') as HTMLInputElement;
     this.configAccountIdLabel = document.getElementById('configAccountIdLabel') as HTMLElement;
     this.configGuideBox = document.getElementById('configGuideBox') as HTMLElement;
+    this.configPageSelectGroup = document.getElementById('configPageSelectGroup') as HTMLElement;
+    this.selectConnectedPage = document.getElementById('selectConnectedPage') as HTMLSelectElement;
     this.btnSaveChannelConfig = document.getElementById('btnSaveChannelConfig') as HTMLElement;
     this.btnInstantConnectChannel = document.getElementById('btnInstantConnectChannel') as HTMLElement;
     this.btnCancelChannelConfig = document.getElementById('btnCancelChannelConfig') as HTMLElement;
   }
 
   private bindEvents() {
+    // Page Selection Dropdown Change
+    this.selectConnectedPage?.addEventListener('change', () => {
+      const selectedOption = this.selectConnectedPage.options[this.selectConnectedPage.selectedIndex];
+      if (selectedOption && selectedOption.value) {
+        const pageName = selectedOption.getAttribute('data-name') || selectedOption.text.split(' (ID:')[0];
+        const pageToken = selectedOption.getAttribute('data-token') || '';
+        const pageId = selectedOption.value;
+
+        if (this.configChannelHandle) this.configChannelHandle.value = pageName;
+        if (this.configChannelAccountId) this.configChannelAccountId.value = pageId;
+        if (this.configChannelToken && pageToken) this.configChannelToken.value = pageToken;
+      }
+    });
+
     // Navigation
     this.btnToday?.addEventListener('click', () => {
       this.viewDate = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
@@ -1158,6 +1176,11 @@ class WargativeContentPlanner {
     const channelId = data.channelId as SocialPlatformId;
     const channelDef = SOCIAL_CHANNELS.find((c) => c.id === channelId) || this.activeConfigChannel;
 
+    const availablePages = data.availablePages || [];
+    if (availablePages.length > 0) {
+      localStorage.setItem('wargative_meta_pages', JSON.stringify(availablePages));
+    }
+
     saveSocialConnection({
       channelId: channelId,
       name: channelDef ? channelDef.name : (data.name || 'Instagram Business'),
@@ -1165,15 +1188,24 @@ class WargativeContentPlanner {
       connected: true,
       accessToken: data.token || 'EAA_OAUTH_TOKEN_VERIFIED',
       accountId: data.accountId || '178414992039',
+      availablePages: availablePages,
       connectedAt: Date.now()
     });
 
-    this.showToast(`🎉 Sukses! Akun ${channelDef ? channelDef.name : channelId} (${data.handle}) berhasil diotorisasi via Meta Login! 🚀`);
+    const pageCountMsg = availablePages.length > 0 ? ` (${availablePages.length} Halaman terdeteksi)` : '';
+    this.showToast(`🎉 Sukses! Akun ${channelDef ? channelDef.name : channelId} (${data.handle}) berhasil diotorisasi!${pageCountMsg} 🚀`);
 
     this.showConnectChannelsListView();
     this.renderConnectSocialList();
     this.updateChannelButtonText();
     this.renderChannelOptionsList();
+
+    // If pages are detected, open config modal so user can choose their page
+    if (availablePages.length > 0 && channelDef) {
+      setTimeout(() => {
+        this.openChannelConfigModal(channelDef);
+      }, 500);
+    }
   }
 
   private renderConnectSocialList() {
@@ -1259,6 +1291,42 @@ class WargativeContentPlanner {
     }
     if (this.configChannelAccountId) {
       this.configChannelAccountId.value = conn?.accountId || '';
+    }
+
+    // Populate Dynamic Page Selector if Meta Pages exist
+    let cachedPages: any[] = [];
+    try {
+      const raw = localStorage.getItem('wargative_meta_pages');
+      if (raw) cachedPages = JSON.parse(raw);
+    } catch (e) {}
+
+    const pages = (conn?.availablePages && conn.availablePages.length > 0) ? conn.availablePages : cachedPages;
+
+    if ((channel.id === 'facebook' || channel.id === 'instagram') && pages && pages.length > 0) {
+      if (this.configPageSelectGroup) this.configPageSelectGroup.style.display = 'block';
+      if (this.selectConnectedPage) {
+        this.selectConnectedPage.innerHTML = `<option value="">-- Pilih Halaman Facebook (${pages.length} Halaman Terdeteksi) --</option>`;
+        pages.forEach((p: any) => {
+          const opt = document.createElement('option');
+          if (channel.id === 'instagram' && p.instagram) {
+            opt.value = p.instagram.id;
+            opt.textContent = `@${p.instagram.username} (${p.name})`;
+            opt.setAttribute('data-name', `@${p.instagram.username}`);
+            opt.setAttribute('data-token', p.accessToken || '');
+          } else {
+            opt.value = p.id;
+            opt.textContent = `${p.name} (ID: ${p.id})`;
+            opt.setAttribute('data-name', p.name);
+            opt.setAttribute('data-token', p.accessToken || '');
+          }
+          if (conn && conn.accountId === opt.value) {
+            opt.selected = true;
+          }
+          this.selectConnectedPage.appendChild(opt);
+        });
+      }
+    } else {
+      if (this.configPageSelectGroup) this.configPageSelectGroup.style.display = 'none';
     }
 
     if (this.modalChannelConfigOverlay) {

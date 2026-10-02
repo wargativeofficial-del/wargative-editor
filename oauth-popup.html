@@ -385,6 +385,17 @@
                       }
                     }
 
+                    const availablePagesList = (accData.data || []).map((p) => ({
+                      id: p.id,
+                      name: p.name,
+                      accessToken: p.access_token || targetToken,
+                      instagram: p.instagram_business_account ? {
+                        id: p.instagram_business_account.id,
+                        username: p.instagram_business_account.username,
+                        name: p.instagram_business_account.name
+                      } : null
+                    }));
+
                     if (window.opener && !window.opener.closed) {
                       window.opener.postMessage({
                         type: 'WARGATIVE_SOCIAL_AUTH_SUCCESS',
@@ -393,6 +404,7 @@
                         token: targetToken,
                         accountId: accountId,
                         name: channel === 'instagram' ? 'Instagram Business' : 'Halaman Facebook',
+                        availablePages: availablePagesList,
                         timestamp: Date.now()
                       }, '*');
                     }
