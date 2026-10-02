@@ -1012,7 +1012,7 @@ class WargativeContentPlanner {
 
     if (this.btnStartOAuthText) {
       if (channel.id === 'instagram') {
-        this.btnStartOAuthText.textContent = 'Connect Instagram Account';
+        this.btnStartOAuthText.textContent = 'Connect Instagram Business via Facebook';
       } else if (channel.id === 'facebook') {
         this.btnStartOAuthText.textContent = 'Connect Facebook Page';
       } else {
@@ -1026,14 +1026,21 @@ class WargativeContentPlanner {
           <div class="step-flow-item">
             <div class="step-number-badge">1</div>
             <div class="step-text">
-              <strong>Direct Instagram Connect</strong>: Masuk langsung dengan username Instagram Anda (@username) tanpa perlu login Facebook.
+              Convert your Instagram Personal or Creator account to an <strong>Instagram Business account</strong>.
+              <a href="https://help.instagram.com/502981923235522" target="_blank" class="step-link">Learn how</a>.
             </div>
           </div>
           <div class="step-flow-item">
             <div class="step-number-badge">2</div>
             <div class="step-text">
-              <strong>Live Meta API Publishing</strong> (Opsional): Untuk auto-post langsung ke feed Instagram via API resmi, tautkan akun Instagram Professional ke Halaman Facebook Anda di Pengaturan Facebook.
-              <a href="https://www.facebook.com/help/instagram/356902681064399" target="_blank" class="step-link">Pelajari caranya</a>.
+              Link it to a <strong>Facebook Page</strong>.
+              <a href="https://www.facebook.com/help/instagram/356902681064399" target="_blank" class="step-link">Learn how</a>.
+            </div>
+          </div>
+          <div class="step-flow-item">
+            <div class="step-number-badge">3</div>
+            <div class="step-text">
+              Connect via <strong>Facebook</strong>.
             </div>
           </div>
         `;
@@ -1156,7 +1163,7 @@ class WargativeContentPlanner {
       if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'none';
       if (this.btnStartOAuthText) {
         if (channel.id === 'instagram') {
-          this.btnStartOAuthText.textContent = 'Connect Instagram Account';
+          this.btnStartOAuthText.textContent = 'Connect Instagram Business via Facebook';
         } else {
           this.btnStartOAuthText.textContent = `Connect ${channel.name}`;
         }

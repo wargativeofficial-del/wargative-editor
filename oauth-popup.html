@@ -30,21 +30,21 @@
       }
       .card-box {
         background: #ffffff;
-        border-radius: 16px;
-        padding: 32px 28px;
+        border-radius: 20px;
+        padding: 36px 30px;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         border: 1px solid #e2e8f0;
         width: 100%;
-        max-width: 420px;
+        max-width: 400px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: 18px;
       }
       .meta-logo {
-        width: 68px;
-        height: 68px;
-        border-radius: 18px;
+        width: 70px;
+        height: 70px;
+        border-radius: 20px;
         background: #1877f2;
         color: #ffffff;
         display: flex;
@@ -59,146 +59,50 @@
         box-shadow: 0 8px 24px rgba(220, 39, 67, 0.3) !important;
       }
       .spinner {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border: 3.5px solid #e2e8f0;
         border-top-color: #1877f2;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
+      .instagram-spinner {
+        border-top-color: #dc2743 !important;
+      }
       @keyframes spin {
         to { transform: rotate(360deg); }
       }
       .title {
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 800;
         color: #0f172a;
       }
       .subtitle {
-        font-size: 13px;
+        font-size: 13.5px;
         color: #64748b;
         line-height: 1.5;
       }
       .success-icon {
-        width: 60px;
-        height: 60px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         background: #dcfce7;
         color: #16a34a;
         display: none;
         align-items: center;
         justify-content: center;
-        font-size: 32px;
+        font-size: 34px;
         font-weight: bold;
-      }
-      .direct-ig-form {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        margin-top: 8px;
-        text-align: left;
-      }
-      .ig-input {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1.5px solid #cbd5e1;
-        border-radius: 10px;
-        font-size: 14px;
-        font-family: inherit;
-        outline: none;
-        transition: border-color 0.2s;
-      }
-      .ig-input:focus {
-        border-color: #dc2743;
-      }
-      .btn-ig-submit {
-        width: 100%;
-        padding: 13px 16px;
-        background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-        color: #ffffff;
-        border: none;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 14px;
-        cursor: pointer;
-        transition: opacity 0.2s;
-        box-shadow: 0 4px 14px rgba(220, 39, 67, 0.3);
-      }
-      .btn-ig-submit:hover {
-        opacity: 0.92;
-      }
-      .divider {
-        display: flex;
-        align-items: center;
-        text-align: center;
-        color: #94a3b8;
-        font-size: 12px;
-        width: 100%;
-        margin: 6px 0;
-      }
-      .divider::before, .divider::after {
-        content: '';
-        flex: 1;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      .divider:not(:empty)::before {
-        margin-right: 10px;
-      }
-      .divider:not(:empty)::after {
-        margin-left: 10px;
-      }
-      .btn-fb-alt {
-        width: 100%;
-        padding: 11px 16px;
-        background: #f1f5f9;
-        color: #334155;
-        border: 1px solid #cbd5e1;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        transition: background 0.2s;
-      }
-      .btn-fb-alt:hover {
-        background: #e2e8f0;
       }
     </style>
   </head>
   <body>
-    <div class="card-box" id="mainCard">
+    <div class="card-box">
       <div class="meta-logo" id="logoIcon">f</div>
       <div class="spinner" id="spinner"></div>
       <div class="success-icon" id="successIcon">✓</div>
-      <h2 class="title" id="statusTitle">Menghubungkan Akun...</h2>
+      <h2 class="title" id="statusTitle">Menghubungkan ke Meta...</h2>
       <p class="subtitle" id="statusDesc">Membuka jendela otorisasi resmi. Mohon tunggu...</p>
-
-      <!-- Direct Instagram Form (Shown when channel is instagram and not yet authorized) -->
-      <div class="direct-ig-form" id="directIgForm" style="display: none;">
-        <label style="font-size: 12px; font-weight: 600; color: #475569;">
-          Username Instagram Anda:
-        </label>
-        <input
-          type="text"
-          id="igUsernameInput"
-          class="ig-input"
-          placeholder="contoh: @namatoko / @username"
-          autocomplete="off"
-        />
-        <button class="btn-ig-submit" id="btnSubmitDirectIg" type="button">
-          ✨ Masuk & Hubungkan Instagram
-        </button>
-
-        <div class="divider">atau</div>
-
-        <button class="btn-fb-alt" id="btnLaunchMetaOauth" type="button">
-          <span style="color: #1877f2; font-weight: 800;">f</span> Hubungkan via Halaman Facebook (Meta API)
-        </button>
-      </div>
     </div>
 
     <script>
@@ -218,21 +122,17 @@
       const successIcon = document.getElementById('successIcon');
       const statusTitle = document.getElementById('statusTitle');
       const statusDesc = document.getElementById('statusDesc');
-      const directIgForm = document.getElementById('directIgForm');
-      const igUsernameInput = document.getElementById('igUsernameInput');
-      const btnSubmitDirectIg = document.getElementById('btnSubmitDirectIg');
-      const btnLaunchMetaOauth = document.getElementById('btnLaunchMetaOauth');
 
       if (channel === 'instagram') {
         logoIcon.className = 'meta-logo instagram-gradient';
         logoIcon.textContent = '📸';
+        spinner.className = 'spinner instagram-spinner';
       } else if (channel === 'threads') {
         logoIcon.style.background = '#000000';
         logoIcon.textContent = '🧵';
       }
 
-      // Handler to send auth payload back to parent
-      function sendSuccessAndClose(payload) {
+      function sendSuccessAndClose(payload, delay = 1000) {
         if (window.opener && !window.opener.closed) {
           window.opener.postMessage({
             type: 'WARGATIVE_SOCIAL_AUTH_SUCCESS',
@@ -241,12 +141,11 @@
         }
 
         if (spinner) spinner.style.display = 'none';
-        if (directIgForm) directIgForm.style.display = 'none';
         if (successIcon) successIcon.style.display = 'flex';
         statusTitle.textContent = 'Otorisasi Berhasil!';
         statusDesc.textContent = `Akun ${payload.handle} berhasil dihubungkan ke Wargative Studio. Menutup jendela...`;
 
-        setTimeout(() => window.close(), 900);
+        setTimeout(() => window.close(), delay);
       }
 
       // CASE 1: Returning from Meta OAuth (#access_token=...)
@@ -256,7 +155,7 @@
           const accessToken = hashParams.get('access_token');
           if (accessToken) {
             statusTitle.textContent = 'Memverifikasi Akun...';
-            statusDesc.textContent = 'Membaca Halaman Facebook dan profil yang Anda setujui...';
+            statusDesc.textContent = 'Membaca data akun yang Anda setujui di Meta...';
 
             fetch(`https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${accessToken}`)
               .then((r) => r.json())
@@ -281,7 +180,7 @@
                           accountId = pageWithIg.instagram_business_account.id;
                           if (pageWithIg.access_token) targetToken = pageWithIg.access_token;
                         } else {
-                          // No IG linked to page yet
+                          // No IG account attached to page yet
                           handle = '@' + fbName.toLowerCase().replace(/[^a-z0-9_.]/g, '');
                           accountId = '178414' + Math.floor(10000000 + Math.random() * 90000000);
                         }
@@ -335,58 +234,13 @@
         } catch (e) {
           console.error('Hash parse error:', e);
         }
-      } else if (channel === 'instagram') {
-        // CASE 2: Instagram Direct Screen (No Facebook login forced!)
-        spinner.style.display = 'none';
-        statusTitle.textContent = 'Hubungkan Instagram';
-        statusDesc.textContent = 'Masukkan username Instagram Anda untuk menghubungkan akun secara langsung tanpa melalui Facebook.';
-        directIgForm.style.display = 'flex';
-
-        btnSubmitDirectIg.addEventListener('click', () => {
-          let userVal = igUsernameInput.value.trim();
-          if (!userVal) {
-            userVal = '@wargative.official';
-          }
-          if (!userVal.startsWith('@')) {
-            userVal = '@' + userVal;
-          }
-
-          sendSuccessAndClose({
-            channelId: 'instagram',
-            handle: userVal,
-            token: 'instagram_direct_auth_verified',
-            accountId: '178414' + Math.floor(10000000 + Math.random() * 90000000),
-            name: 'Instagram Business',
-            availablePages: [],
-            timestamp: Date.now()
-          });
-        });
-
-        igUsernameInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            btnSubmitDirectIg.click();
-          }
-        });
-
-        btnLaunchMetaOauth.addEventListener('click', () => {
-          directIgForm.style.display = 'none';
-          spinner.style.display = 'block';
-          statusTitle.textContent = 'Menghubungkan ke Meta...';
-          statusDesc.textContent = 'Membuka otorisasi Facebook untuk sinkronisasi Instagram Professional...';
-
-          const redirectUri = window.location.origin + '/oauth-popup.html';
-          const scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
-          const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=instagram`;
-          window.location.href = authUrl;
-        });
-
       } else {
-        // CASE 3: Facebook / Other Channels - Instant OAuth
+        // CASE 2: Instant 1-Click Meta OAuth (Exactly the same as Facebook!)
         const redirectUri = window.location.origin + '/oauth-popup.html';
         const scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
         const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
         
-        // Instant redirect to Facebook!
+        // Instant redirect to Meta!
         window.location.href = authUrl;
       }
     </script>
