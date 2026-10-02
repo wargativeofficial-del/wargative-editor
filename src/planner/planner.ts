@@ -258,6 +258,17 @@ class WargativeContentPlanner {
       this.openScheduleModal(this.today);
     });
 
+    const bannerPublishBtn = document.getElementById('bannerPublishCard');
+    bannerPublishBtn?.addEventListener('click', () => {
+      this.openScheduleModal(this.today);
+    });
+
+    const bannerConnectBtn = document.getElementById('bannerConnectCard');
+    bannerConnectBtn?.addEventListener('click', () => {
+      this.openScheduleModal(this.today);
+      this.showViewChannelPicker();
+    });
+
     // Modal Close
     this.btnCloseModal?.addEventListener('click', () => {
       this.closeScheduleModal();
