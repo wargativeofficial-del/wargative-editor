@@ -17,8 +17,12 @@ import {
   formatTimeAgo,
   ProjectItem
 } from '../common/projectStore';
+import { authUI } from '../common/authUI';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Sync User Auth Slot
+  authUI.syncNavUserHeader();
+
   // Elements
   const modalBackdrop = document.getElementById('createModal') as HTMLElement;
   const btnOpenModal = document.getElementById('btnOpenModal') as HTMLElement;

@@ -20,6 +20,7 @@ import {
   disconnectSocialConnection
 } from '../common/plannerStore';
 import { getProjects, ProjectItem } from '../common/projectStore';
+import { authUI } from '../common/authUI';
 
 const MONTH_NAMES_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -252,12 +253,6 @@ class WargativeContentPlanner {
   private btnBackFromStepsFlow!: HTMLElement;
   private stepsFlowHeaderTitle!: HTMLElement;
   private stepsFlowItemsContainer!: HTMLElement;
-  private btnStartOAuthFlow!: HTMLElement;
-  private btnStartOAuthText!: HTMLElement;
-  private oauthBtnSpinner!: HTMLElement;
-  private linkOpenManualConfig!: HTMLElement;
-  private inputDirectConnectHandle!: HTMLInputElement;
-  private linkLaunchMetaOAuth!: HTMLElement;
 
   // Channel Config Dialog (API Key & Tokens)
   private modalChannelConfigOverlay!: HTMLElement;
@@ -359,12 +354,6 @@ class WargativeContentPlanner {
     this.btnBackFromStepsFlow = document.getElementById('btnBackFromStepsFlow') as HTMLElement;
     this.stepsFlowHeaderTitle = document.getElementById('stepsFlowHeaderTitle') as HTMLElement;
     this.stepsFlowItemsContainer = document.getElementById('stepsFlowItemsContainer') as HTMLElement;
-    this.btnStartOAuthFlow = document.getElementById('btnStartOAuthFlow') as HTMLElement;
-    this.btnStartOAuthText = document.getElementById('btnStartOAuthText') as HTMLElement;
-    this.oauthBtnSpinner = document.getElementById('oauthBtnSpinner') as HTMLElement;
-    this.linkOpenManualConfig = document.getElementById('linkOpenManualConfig') as HTMLElement;
-    this.inputDirectConnectHandle = document.getElementById('inputDirectConnectHandle') as HTMLInputElement;
-    this.linkLaunchMetaOAuth = document.getElementById('linkLaunchMetaOAuth') as HTMLElement;
 
     // Channel Config Dialog
     this.modalChannelConfigOverlay = document.getElementById('modalChannelConfigOverlay') as HTMLElement;
@@ -530,30 +519,9 @@ class WargativeContentPlanner {
       this.openScheduleModal(this.today);
     });
 
-    // Step-by-Step Flow Events (Direct Connect & Meta Popup)
+    // Step-by-Step Flow Events
     this.btnBackFromStepsFlow?.addEventListener('click', () => {
       this.showConnectChannelsListView();
-    });
-
-    this.btnStartOAuthFlow?.addEventListener('click', () => {
-      this.executeInstantDirectConnect();
-    });
-
-    this.inputDirectConnectHandle?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        this.executeInstantDirectConnect();
-      }
-    });
-
-    this.linkLaunchMetaOAuth?.addEventListener('click', () => {
-      this.launchOAuthPopupWindow();
-    });
-
-    this.linkOpenManualConfig?.addEventListener('click', () => {
-      if (this.activeConfigChannel) {
-        this.openChannelConfigModal(this.activeConfigChannel);
-      }
     });
 
     // Channel Config Dialog Events
@@ -1030,220 +998,31 @@ class WargativeContentPlanner {
     if (this.connectViewStepsFlow) this.connectViewStepsFlow.style.display = 'flex';
 
     if (this.stepsFlowHeaderTitle) {
-      this.stepsFlowHeaderTitle.textContent = `Hubungkan ke ${channel.name}`;
-    }
-
-    if (this.btnStartOAuthText) {
-      this.btnStartOAuthText.textContent = '✨ Hubungkan Akun Sekarang';
-    }
-
-    if (this.inputDirectConnectHandle) {
-      const existingConn = getSocialConnection(channel.id);
-      this.inputDirectConnectHandle.value = existingConn?.handle || '';
-      if (channel.id === 'instagram') {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: @tokosaya / @nama_ig';
-      } else if (channel.id === 'facebook') {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: Halaman Toko / Sahabat Film';
-      } else if (channel.id === 'tiktok') {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: @akun_tiktok';
-      } else if (channel.id === 'threads') {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: @akun_threads';
-      } else if (channel.id === 'youtube') {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: Nama YouTube Channel';
-      } else {
-        this.inputDirectConnectHandle.placeholder = 'Contoh: @nama_akun';
-      }
-      setTimeout(() => this.inputDirectConnectHandle?.focus(), 150);
+      this.stepsFlowHeaderTitle.textContent = channel.name;
     }
 
     if (this.stepsFlowItemsContainer) {
-      if (channel.id === 'instagram') {
-        this.stepsFlowItemsContainer.innerHTML = `
-          <div class="step-flow-item">
-            <div class="step-number-badge">1</div>
-            <div class="step-text">
-              Ketik username akun <strong>Instagram (@nama_akun)</strong> Anda di kolom bawah.
-            </div>
+      this.stepsFlowItemsContainer.innerHTML = `
+        <div class="step-flow-item">
+          <div class="step-number-badge">1</div>
+          <div class="step-text">
+            Pastikan Anda telah masuk ke <strong>akun Wargative</strong> Anda menggunakan menu di kanan atas.
           </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">2</div>
-            <div class="step-text">
-              Klik <strong>✨ Hubungkan Akun Sekarang</strong> untuk menghubungkan secara langsung & otomatis.
-            </div>
+        </div>
+        <div class="step-flow-item">
+          <div class="step-number-badge">2</div>
+          <div class="step-text">
+            Otorisasi OAuth server-to-server resmi untuk <strong>${channel.name}</strong> akan dihubungkan pada Phase 3.
           </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">3</div>
-            <div class="step-text">
-              Akun langsung berstatus <strong>● Terhubung (Hijau)</strong> dan siap jadwalkan publikasi!
-            </div>
+        </div>
+        <div class="step-flow-item">
+          <div class="step-number-badge">3</div>
+          <div class="step-text">
+            Koneksi akun akan otomatis terikat ke <code>user_id</code> Anda di database Supabase secara aman.
           </div>
-        `;
-      } else if (channel.id === 'facebook') {
-        this.stepsFlowItemsContainer.innerHTML = `
-          <div class="step-flow-item">
-            <div class="step-number-badge">1</div>
-            <div class="step-text">
-              Ketik nama <strong>Halaman Facebook (Page)</strong> Anda pada kolom di bawah.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">2</div>
-            <div class="step-text">
-              Klik tombol <strong>✨ Hubungkan Akun Sekarang</strong> untuk aktivasi instan tanpa ribet izin Meta.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">3</div>
-            <div class="step-text">
-              Halaman Facebook langsung tersambung dan siap menerbitkan konten dari Wargative!
-            </div>
-          </div>
-        `;
-      } else if (channel.id === 'tiktok') {
-        this.stepsFlowItemsContainer.innerHTML = `
-          <div class="step-flow-item">
-            <div class="step-number-badge">1</div>
-            <div class="step-text">
-              Ketik handle <strong>TikTok (@creator)</strong> Anda pada kolom di bawah.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">2</div>
-            <div class="step-text">
-              Klik <strong>✨ Hubungkan Akun Sekarang</strong> untuk menghubungkan profil TikTok.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">3</div>
-            <div class="step-text">
-              Siap untuk penjadwalan & upload video TikTok!
-            </div>
-          </div>
-        `;
-      } else if (channel.id === 'threads') {
-        this.stepsFlowItemsContainer.innerHTML = `
-          <div class="step-flow-item">
-            <div class="step-number-badge">1</div>
-            <div class="step-text">
-              Ketik handle <strong>Threads (@username)</strong> Anda pada kolom di bawah.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">2</div>
-            <div class="step-text">
-              Klik <strong>✨ Hubungkan Akun Sekarang</strong> untuk menghubungkan akun Threads.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">3</div>
-            <div class="step-text">
-              Publikasikan status dan gambar langsung ke timeline Threads.
-            </div>
-          </div>
-        `;
-      } else if (channel.id === 'youtube') {
-        this.stepsFlowItemsContainer.innerHTML = `
-          <div class="step-flow-item">
-            <div class="step-number-badge">1</div>
-            <div class="step-text">
-              Ketik nama <strong>Channel YouTube</strong> Anda pada kolom di bawah.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">2</div>
-            <div class="step-text">
-              Klik <strong>✨ Hubungkan Akun Sekarang</strong> untuk menghubungkan channel.
-            </div>
-          </div>
-          <div class="step-flow-item">
-            <div class="step-number-badge">3</div>
-            <div class="step-text">
-              Siap menjadwalkan dan menerbitkan konten video YouTube.
-            </div>
-          </div>
-        `;
-      }
+        </div>
+      `;
     }
-  }
-
-  // Instant direct connect without Meta tester/review barriers
-  private executeInstantDirectConnect() {
-    if (!this.activeConfigChannel) return;
-    const channel = this.activeConfigChannel;
-
-    let handle = this.inputDirectConnectHandle ? this.inputDirectConnectHandle.value.trim() : '';
-    if (!handle) {
-      handle = channel.demoHandle || `@${channel.id}_user`;
-    }
-
-    // Ensure leading @ for Instagram, Threads, TikTok, X
-    if (['instagram', 'threads', 'tiktok', 'x'].includes(channel.id) && !handle.startsWith('@')) {
-      handle = '@' + handle;
-    }
-
-    if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'inline-block';
-    if (this.btnStartOAuthText) this.btnStartOAuthText.textContent = 'Menghubungkan...';
-
-    setTimeout(() => {
-      if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'none';
-      if (this.btnStartOAuthText) this.btnStartOAuthText.textContent = '✨ Hubungkan Akun Sekarang';
-
-      saveSocialConnection({
-        channelId: channel.id,
-        name: channel.name,
-        handle: handle,
-        connected: true,
-        accessToken: `WARGATIVE_DIRECT_TOKEN_${channel.id.toUpperCase()}_${Date.now()}`,
-        accountId: `acc_${channel.id}_${Math.floor(100000 + Math.random() * 900000)}`,
-        availablePages: [{ id: `page_${Date.now()}`, name: handle, accessToken: 'DIRECT_ACCESS_TOKEN' }],
-        connectedAt: Date.now()
-      });
-
-      this.showToast(`🎉 Sukses! Akun ${channel.name} (${handle}) berhasil dihubungkan! 🚀`);
-      this.showConnectChannelsListView();
-      this.renderConnectSocialList();
-      this.updateChannelButtonText();
-      this.renderChannelOptionsList();
-    }, 350);
-  }
-
-  // Opens the genuine browser OAuth popup window matching screenshot
-  private launchOAuthPopupWindow() {
-    if (!this.activeConfigChannel) return;
-    const channel = this.activeConfigChannel;
-
-    if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'inline-block';
-    if (this.btnStartOAuthText) this.btnStartOAuthText.textContent = 'Menghubungkan ke Meta...';
-
-    const width = 560;
-    const height = 680;
-    const left = Math.round(window.screenX + (window.outerWidth - width) / 2);
-    const top = Math.round(window.screenY + (window.outerHeight - height) / 2);
-
-    const popupUrl = `./oauth-popup.html?channel=${channel.id}`;
-    const popup = window.open(
-      popupUrl,
-      'MetaOAuthLoginPopup',
-      `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`
-    );
-
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      alert('Popup blocker browser Anda aktif! Izinkan pop-up untuk melanjutkan proses login.');
-      if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'none';
-      if (this.btnStartOAuthText) this.btnStartOAuthText.textContent = `Connect ${channel.name}`;
-      return;
-    }
-
-    setTimeout(() => {
-      if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'none';
-      if (this.btnStartOAuthText) {
-        if (channel.id === 'instagram') {
-          this.btnStartOAuthText.textContent = 'Connect Instagram Business via Meta';
-        } else {
-          this.btnStartOAuthText.textContent = `Connect ${channel.name}`;
-        }
-      }
-    }, 1400);
   }
 
   // Handles callback from OAuth popup window

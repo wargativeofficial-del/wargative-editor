@@ -154,6 +154,9 @@
                 <span style="font-size: 11px; margin-left: 2px;">˅</span>
               </button>
 
+              <!-- User Auth Status Slot (Phase 1) -->
+              <div class="wargative-user-auth-slot" style="margin-right: 6px;"></div>
+
               <!-- Main Add Schedule Button -->
               <button class="btn-add-schedule" id="btnAddScheduleHeader" type="button">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,35 +476,12 @@
               <div class="steps-flow-container" id="stepsFlowItemsContainer">
                 <!-- Rendered dynamically for each platform -->
               </div>
-
-              <!-- Direct Handle Input -->
-              <div style="margin-top: 18px; text-align: left;">
-                <label id="directConnectLabel" style="display: block; font-size: 12px; font-weight: 700; color: #374151; margin-bottom: 6px;">
-                  Username / Nama Akun:
-                </label>
-                <input
-                  type="text"
-                  id="inputDirectConnectHandle"
-                  class="config-input-field"
-                  placeholder="Contoh: @tokosaya / Halaman Toko"
-                  style="width: 100%; padding: 11px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; background: #ffffff;"
-                />
-              </div>
             </div>
 
-            <div style="margin-top: 20px;">
-              <button class="btn-connect-oauth-action" id="btnStartOAuthFlow" type="button" style="width: 100%; padding: 13px; font-size: 15px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #7047eb 0%, #9065ff 100%);">
-                <span class="spinner" id="oauthBtnSpinner"></span>
-                <span id="btnStartOAuthText">✨ Hubungkan Akun Sekarang</span>
-              </button>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 0 4px;">
-                <a href="javascript:void(0)" id="linkLaunchMetaOAuth" style="font-size: 12px; color: #1877f2; font-weight: 600; text-decoration: none;">
-                  🔗 Otorisasi via Popup Meta &rsaquo;
-                </a>
-                <a href="javascript:void(0)" id="linkOpenManualConfig" style="font-size: 12px; color: #7047eb; font-weight: 600; text-decoration: none;">
-                  ⚙️ Token Manual &rsaquo;
-                </a>
+            <div style="margin-top: 24px;">
+              <div style="text-align: center; padding: 20px 16px; background: #f8fafc; border-radius: 12px; border: 1.5px dashed #cbd5e1; font-size: 13px; color: #64748b; line-height: 1.6;">
+                🔒 <strong>Otorisasi Resmi Multi-User (Phase 3)</strong><br />
+                Pastikan Anda telah masuk ke akun Wargative di atas. Koneksi resmi server-to-server akan diaktifkan pada fase integrasi OAuth.
               </div>
             </div>
           </div>
