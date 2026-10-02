@@ -236,6 +236,7 @@
         }
       } else {
         // CASE 2: Instant 1-Click Meta OAuth (Exactly the same as Facebook!)
+        const redirectUri = window.location.origin + '/oauth-popup.html';
         let scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
         if (channel === 'instagram') {
           scope = 'pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish';
