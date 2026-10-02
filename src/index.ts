@@ -96,92 +96,6 @@ CreativeEditorSDK.create('#cesdk_container', config)
     document.title = `${projectMeta.title} - Wargative Editor`;
 
     // ============================================================================
-    // Load Saved Scene or Initialize New Scene
-    // ============================================================================
-    const savedScene = getProjectScene(projectId);
-
-    if (savedScene) {
-      // Restore previously saved project scene
-      try {
-        console.log(`[Wargative AutoSave] Loading saved scene for ${projectId}`);
-        await cesdk.engine.scene.loadFromString(savedScene);
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
-      } catch (err) {
-        console.error('[Wargative AutoSave] Failed to restore saved scene:', err);
-        await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
-      }
-    } else if (aiTransferData) {
-      // BUILD NATIVE AI DESIGN SCENE (Canva Style Layered Elements)
-      console.log('[Wargative] Building native AI design scene:', aiTransferData);
-      try {
-        await buildAiDesignScene(cesdk, aiTransferData, width, height);
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId, initialSceneStr);
-      } catch (e) {
-        console.error('[Wargative] Error building AI scene:', e);
-        await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
-      }
-    } else if (templateUri) {
-      // Load specific archive template from Wargative library
-      console.log(`[Wargative] Loading template archive from ${templateUri}`);
-      try {
-        await cesdk.engine.scene.loadFromArchiveURL(templateUri);
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
-      } catch (err) {
-        console.warn('[Wargative] loadFromArchiveURL failed, trying cesdk.load:', err);
-        try {
-          await cesdk.load(templateUri);
-          await cesdk.actions.run('zoom.toPage', { page: 'first' });
-        } catch (e2) {
-          console.error('[Wargative] Failed to load template:', e2);
-          await cesdk.createDesignScene({ width: 1080, height: 1080, unit: 'Pixel' });
-          await cesdk.actions.run('zoom.toPage', { page: 'first' });
-        }
-      }
-
-      // Save initial scene
-      try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId, initialSceneStr);
-      } catch (e) {}
-    } else if (template === 'marketing-ad' || projectId === 'proj_marketing_ad') {
-      // Load marketing ad template
-      await cesdk.load(`${DEMO_ASSETS_BASE_URL}/assets/4-5-marketing-ad/scene.scene`);
-      await cesdk.actions.run('zoom.toPage', { page: 'first' });
-
-      // Save initial scene
-      try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId, initialSceneStr);
-      } catch (e) {}
-    } else {
-      // Create new clean scene with dimensions
-      await cesdk.createDesignScene({
-        width,
-        height,
-        unit: 'Pixel'
-      });
-
-      const pages = cesdk.engine.scene.getPages();
-      if (pages.length > 0 && title) {
-        try {
-          cesdk.engine.block.setName(pages[0], title);
-        } catch (e) {}
-      }
-
-      await cesdk.actions.run('zoom.toPage', { page: 'first' });
-
-      // Save initial scene immediately so it's never lost
-      try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId, initialSceneStr);
-      } catch (e) {}
-    }
-
-    // ============================================================================
     // Auto-Save UI Indicator & Logic
     // ============================================================================
     const autoSaveBadge = document.createElement('div');
@@ -259,7 +173,321 @@ CreativeEditorSDK.create('#cesdk_container', config)
       }
     };
 
-    // Auto-save on every user edit in CE.SDK canvas
+    // ============================================================================
+    // Real-Time Bi-Directional Live Sync System (CE.SDK <--> AI Magic Studio)
+    // ============================================================================
+    const syncChannel = new BroadcastChannel('wargative_live_sync_channel');
+    let isSyncingFromAi = false;
+    let lastBroadcastState = { headline: '', subheadline: '', badge: '' };
+    let sceneSyncDebounce: ReturnType<typeof setTimeout> | null = null;
+
+    function getBlockText(blockId: number): string {
+      try {
+        const runs = cesdk.engine.block.getTextRuns(blockId);
+        if (Array.isArray(runs)) {
+          return runs.map((r: any) => r.text || '').join('');
+        }
+        return '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function syncAiDataToSceneBlocks(aiData: any) {
+      if (!aiData) return;
+      isSyncingFromAi = true;
+      try {
+        const targetW = aiData.width || 1080;
+
+        // 1. Headline
+        if (aiData.headline) {
+          let hlBlocks = cesdk.engine.block.findByName('ai_headline');
+          if (hlBlocks.length === 0) {
+            const textBlocks = cesdk.engine.block.findByType('text');
+            if (textBlocks.length > 0) {
+              cesdk.engine.block.setName(textBlocks[0], 'ai_headline');
+              hlBlocks = [textBlocks[0]];
+            }
+          }
+          if (hlBlocks.length > 0) {
+            const hl = hlBlocks[0];
+            const curText = getBlockText(hl);
+            if (curText !== aiData.headline) {
+              cesdk.engine.block.replaceText(hl, aiData.headline);
+            }
+            cesdk.engine.block.setWidth(hl, targetW - 140);
+            cesdk.engine.block.setHeight(hl, 260);
+            try {
+              cesdk.engine.block.setHeightMode(hl, 'Auto');
+            } catch (e) {}
+          }
+        }
+
+        // 2. Subheadline
+        if (aiData.subheadline) {
+          let subBlocks = cesdk.engine.block.findByName('ai_subheadline');
+          if (subBlocks.length === 0) {
+            const textBlocks = cesdk.engine.block.findByType('text');
+            if (textBlocks.length > 1) {
+              cesdk.engine.block.setName(textBlocks[1], 'ai_subheadline');
+              subBlocks = [textBlocks[1]];
+            }
+          }
+          if (subBlocks.length > 0) {
+            const sub = subBlocks[0];
+            const curText = getBlockText(sub);
+            if (curText !== aiData.subheadline) {
+              cesdk.engine.block.replaceText(sub, aiData.subheadline);
+            }
+            cesdk.engine.block.setWidth(sub, targetW - 140);
+            try {
+              cesdk.engine.block.setHeightMode(sub, 'Auto');
+            } catch (e) {}
+          }
+        }
+
+        // 3. Badge
+        if (aiData.badge) {
+          let badgeBlocks = cesdk.engine.block.findByName('ai_badge');
+          if (badgeBlocks.length === 0) {
+            const textBlocks = cesdk.engine.block.findByType('text');
+            if (textBlocks.length > 2) {
+              cesdk.engine.block.setName(textBlocks[2], 'ai_badge');
+              badgeBlocks = [textBlocks[2]];
+            }
+          }
+          if (badgeBlocks.length > 0) {
+            const badge = badgeBlocks[0];
+            const curText = getBlockText(badge);
+            if (curText !== aiData.badge) {
+              cesdk.engine.block.replaceText(badge, aiData.badge);
+            }
+          }
+        }
+
+        // 4. Ensure polyBlock is never a solid obstructive blue box
+        const polyBlocks = cesdk.engine.block.findByName('ai_poly');
+        if (polyBlocks.length > 0) {
+          const pb = polyBlocks[0];
+          cesdk.engine.block.setWidth(pb, 70);
+          cesdk.engine.block.setHeight(pb, 70);
+          cesdk.engine.block.setPositionX(pb, targetW - 120);
+          cesdk.engine.block.setPositionY(pb, 35);
+          try {
+            const fill = cesdk.engine.block.getFill(pb);
+            if (fill) {
+              cesdk.engine.block.setColor(fill, 'fill/color/value', { r: 0.22, g: 0.74, b: 0.97, a: 0.05 });
+            }
+          } catch (e) {}
+        }
+
+        // Auto-save the updated scene
+        performAutoSave();
+      } catch (err) {
+        console.warn('[Wargative Sync] Error syncing AI data to scene blocks:', err);
+      } finally {
+        setTimeout(() => {
+          isSyncingFromAi = false;
+        }, 200);
+      }
+    }
+
+    function syncSceneToAiStudio() {
+      if (isSyncingFromAi) return;
+
+      if (sceneSyncDebounce) clearTimeout(sceneSyncDebounce);
+      sceneSyncDebounce = setTimeout(() => {
+        try {
+          let headline = '';
+          let subheadline = '';
+          let badge = '';
+
+          let hlBlocks = cesdk.engine.block.findByName('ai_headline');
+          if (hlBlocks.length === 0) {
+            const texts = cesdk.engine.block.findByType('text');
+            if (texts.length > 0) {
+              cesdk.engine.block.setName(texts[0], 'ai_headline');
+              hlBlocks = [texts[0]];
+            }
+          }
+          if (hlBlocks.length > 0) {
+            headline = getBlockText(hlBlocks[0]);
+          }
+
+          let subBlocks = cesdk.engine.block.findByName('ai_subheadline');
+          if (subBlocks.length === 0) {
+            const texts = cesdk.engine.block.findByType('text');
+            if (texts.length > 1) {
+              cesdk.engine.block.setName(texts[1], 'ai_subheadline');
+              subBlocks = [texts[1]];
+            }
+          }
+          if (subBlocks.length > 0) {
+            subheadline = getBlockText(subBlocks[0]);
+          }
+
+          let badgeBlocks = cesdk.engine.block.findByName('ai_badge');
+          if (badgeBlocks.length === 0) {
+            const texts = cesdk.engine.block.findByType('text');
+            if (texts.length > 2) {
+              cesdk.engine.block.setName(texts[2], 'ai_badge');
+              badgeBlocks = [texts[2]];
+            }
+          }
+          if (badgeBlocks.length > 0) {
+            badge = getBlockText(badgeBlocks[0]);
+          }
+
+          if (!headline && !subheadline && !badge) return;
+
+          if (
+            headline !== lastBroadcastState.headline ||
+            subheadline !== lastBroadcastState.subheadline ||
+            badge !== lastBroadcastState.badge
+          ) {
+            lastBroadcastState = { headline, subheadline, badge };
+
+            const syncPayload = {
+              type: 'EDITOR_TO_AI',
+              projectId,
+              timestamp: Date.now(),
+              data: {
+                headline,
+                subheadline,
+                badge
+              }
+            };
+
+            // 1. Post message to BroadcastChannel for instant real-time live sync
+            syncChannel.postMessage(syncPayload);
+
+            // 2. Persist to localStorage
+            localStorage.setItem(`wargative_ai_live_sync_${projectId}`, JSON.stringify(syncPayload));
+
+            // 3. Update transfer design
+            const transferRaw = localStorage.getItem('wargative_ai_transfer_design');
+            if (transferRaw) {
+              try {
+                const parsed = JSON.parse(transferRaw);
+                if (parsed.projectId === projectId || !parsed.projectId) {
+                  if (headline) parsed.headline = headline;
+                  if (subheadline) parsed.subheadline = subheadline;
+                  if (badge) parsed.badge = badge;
+                  localStorage.setItem('wargative_ai_transfer_design', JSON.stringify(parsed));
+                }
+              } catch (e) {}
+            }
+
+            // 4. Update project title in store
+            const currentMeta = getProject(projectId!);
+            if (currentMeta && headline) {
+              currentMeta.title = headline;
+              currentMeta.updatedAt = Date.now();
+              saveProjectMeta(currentMeta);
+            }
+          }
+        } catch (err) {
+          console.warn('[Sync] Failed sync to AI Studio:', err);
+        }
+      }, 100);
+    }
+
+    // ============================================================================
+    // Load Saved Scene or Initialize New Scene
+    // ============================================================================
+    const savedScene = getProjectScene(projectId);
+
+    if (savedScene) {
+      // Restore previously saved project scene
+      try {
+        console.log(`[Wargative AutoSave] Loading saved scene for ${projectId}`);
+        await cesdk.engine.scene.loadFromString(savedScene);
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+        // CRITICAL FIX: If aiTransferData is present, sync any updated text from AI Studio into scene blocks!
+        if (aiTransferData) {
+          syncAiDataToSceneBlocks(aiTransferData);
+        }
+      } catch (err) {
+        console.error('[Wargative AutoSave] Failed to restore saved scene:', err);
+        if (aiTransferData) {
+          await buildAiDesignScene(cesdk, aiTransferData, width, height);
+        } else {
+          await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
+        }
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+      }
+    } else if (aiTransferData) {
+      // BUILD NATIVE AI DESIGN SCENE (Canva Style Layered Elements)
+      console.log('[Wargative] Building native AI design scene:', aiTransferData);
+      try {
+        await buildAiDesignScene(cesdk, aiTransferData, width, height);
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {
+        console.error('[Wargative] Error building AI scene:', e);
+        await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+      }
+    } else if (templateUri) {
+      // Load specific archive template from Wargative library
+      console.log(`[Wargative] Loading template archive from ${templateUri}`);
+      try {
+        await cesdk.engine.scene.loadFromArchiveURL(templateUri);
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+      } catch (err) {
+        console.warn('[Wargative] loadFromArchiveURL failed, trying cesdk.load:', err);
+        try {
+          await cesdk.load(templateUri);
+          await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        } catch (e2) {
+          console.error('[Wargative] Failed to load template:', e2);
+          await cesdk.createDesignScene({ width: 1080, height: 1080, unit: 'Pixel' });
+          await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        }
+      }
+
+      // Save initial scene
+      try {
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {}
+    } else if (template === 'marketing-ad' || projectId === 'proj_marketing_ad') {
+      // Load marketing ad template
+      await cesdk.load(`${DEMO_ASSETS_BASE_URL}/assets/4-5-marketing-ad/scene.scene`);
+      await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+      // Save initial scene
+      try {
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {}
+    } else {
+      // Create new clean scene with dimensions
+      await cesdk.createDesignScene({
+        width,
+        height,
+        unit: 'Pixel'
+      });
+
+      const pages = cesdk.engine.scene.getPages();
+      if (pages.length > 0 && title) {
+        try {
+          cesdk.engine.block.setName(pages[0], title);
+        } catch (e) {}
+      }
+
+      await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+      // Save initial scene immediately so it's never lost
+      try {
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {}
+    }
+
+    // Auto-save on every user edit in CE.SDK canvas & sync to AI Studio!
     cesdk.engine.editor.onHistoryUpdated(() => {
       if (asIcon && asText) {
         asIcon.style.color = '#f59e0b';
@@ -269,6 +497,51 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
       if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
       saveDebounceTimer = setTimeout(performAutoSave, 1000);
+
+      // Live sync every change to AI Studio
+      syncSceneToAiStudio();
+    });
+
+    // Subscribe to block events for immediate feedback
+    try {
+      (cesdk.engine.block as any).subscribe([], () => {
+        syncSceneToAiStudio();
+      });
+    } catch (e) {}
+
+    // Listen to real-time changes coming from AI Studio
+    syncChannel.onmessage = (event) => {
+      const msg = event.data;
+      if (!msg || msg.type !== 'AI_TO_EDITOR') return;
+      if (msg.projectId && msg.projectId !== projectId) return;
+      console.log('[Wargative Sync] Received AI_TO_EDITOR update:', msg.data);
+      syncAiDataToSceneBlocks(msg.data);
+    };
+
+    // Fallback sync via localStorage storage event
+    window.addEventListener('storage', (e) => {
+      if (e.key === `wargative_ai_live_sync_${projectId}` || e.key === 'wargative_ai_transfer_design') {
+        if (!e.newValue) return;
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const data = parsed.data || parsed;
+          syncAiDataToSceneBlocks(data);
+        } catch (err) {}
+      }
+    });
+
+    // Focus listener: When user switches back to Editor tab, reload latest AI changes
+    window.addEventListener('focus', () => {
+      const raw = localStorage.getItem(`wargative_ai_live_sync_${projectId}`) || localStorage.getItem('wargative_ai_transfer_design');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const data = parsed.data || parsed;
+          if (data && data.headline) {
+            syncAiDataToSceneBlocks(data);
+          }
+        } catch (err) {}
+      }
     });
 
     // Auto-save before unload, pagehide, and visibilitychange
@@ -316,6 +589,28 @@ CreativeEditorSDK.create('#cesdk_container', config)
       });
     }
 
+    // AI Studio button: show if AI design, save and return to AI Studio
+    const aiNavBtn = document.getElementById('navAiStudioBtn') as HTMLAnchorElement;
+    if (aiNavBtn) {
+      if (isAiGen || aiTransferData) {
+        aiNavBtn.style.display = 'flex';
+        autoSaveBadge.style.left = '218px';
+      }
+      aiNavBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (asIcon && asText) {
+          asIcon.textContent = '⟳';
+          asText.textContent = 'Saving...';
+        }
+        try {
+          const sceneString = await cesdk.engine.scene.saveToString();
+          saveProjectScene(projectId!, sceneString);
+          syncSceneToAiStudio();
+        } catch (err) {}
+        window.location.href = './wargative-ai.html';
+      });
+    }
+
     // Auto download if requested via query param
     if (autoDownload === 'true') {
       setTimeout(async () => {
@@ -357,6 +652,7 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
   // 1. Background Rectangle Block (Dark Navy #0c2340)
   try {
     const bgBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setName(bgBlock, 'ai_bg');
     cesdk.engine.block.setShape(bgBlock, cesdk.engine.block.createShape('rect'));
     const bgFill = cesdk.engine.block.createFill('color');
     cesdk.engine.block.setColor(bgFill, 'fill/color/value', hexToRgba(aiData.colors?.bg || '#0c2340'));
@@ -377,6 +673,7 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
   try {
     if (aiData.imageUrl) {
       const imgBlock = cesdk.engine.block.create('graphic');
+      cesdk.engine.block.setName(imgBlock, 'ai_image');
       cesdk.engine.block.setShape(imgBlock, cesdk.engine.block.createShape('rect'));
       const imgFill = cesdk.engine.block.createFill('image');
       cesdk.engine.block.setString(imgFill, 'fill/image/imageFileURI', aiData.imageUrl);
@@ -394,6 +691,7 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
   // 3. Golden Accent Divider / Wave Bar
   try {
     const dividerBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setName(dividerBlock, 'ai_divider');
     cesdk.engine.block.setShape(dividerBlock, cesdk.engine.block.createShape('rect'));
     const dividerFill = cesdk.engine.block.createFill('color');
     cesdk.engine.block.setColor(dividerFill, 'fill/color/value', hexToRgba(aiData.colors?.accent || '#f59e0b'));
@@ -407,33 +705,45 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
     console.warn('[AI Builder] Divider block failed:', e);
   }
 
-  // 4. Geometric Wireframe Polygon at Top Right
+  // 4. Geometric Wireframe Polygon at Top Right (subtle decor, NOT solid blue box)
   try {
     const polyBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setName(polyBlock, 'ai_poly');
     cesdk.engine.block.setShape(polyBlock, cesdk.engine.block.createShape('rect'));
     const polyFill = cesdk.engine.block.createFill('color');
-    cesdk.engine.block.setColor(polyFill, 'fill/color/value', { r: 0.22, g: 0.74, b: 0.97, a: 0.4 });
+    cesdk.engine.block.setColor(polyFill, 'fill/color/value', { r: 0.22, g: 0.74, b: 0.97, a: 0.05 });
     cesdk.engine.block.setFill(polyBlock, polyFill);
-    cesdk.engine.block.setWidth(polyBlock, 120);
-    cesdk.engine.block.setHeight(polyBlock, 100);
-    cesdk.engine.block.setPositionX(polyBlock, targetW - 180);
-    cesdk.engine.block.setPositionY(polyBlock, 50);
+    cesdk.engine.block.setWidth(polyBlock, 70);
+    cesdk.engine.block.setHeight(polyBlock, 70);
+    cesdk.engine.block.setPositionX(polyBlock, targetW - 120);
+    cesdk.engine.block.setPositionY(polyBlock, 35);
+    try {
+      const polyStroke = cesdk.engine.block.createStroke();
+      cesdk.engine.block.setColor(polyStroke, 'stroke/color/value', { r: 0.22, g: 0.74, b: 0.97, a: 0.5 });
+      cesdk.engine.block.setFloat(polyStroke, 'stroke/width', 2);
+      cesdk.engine.block.setStroke(polyBlock, polyStroke);
+    } catch (err) {}
     cesdk.engine.block.appendChild(page, polyBlock);
   } catch (e) {
     console.warn('[AI Builder] Poly block failed:', e);
   }
 
-  // 5. Headline Text Block (Bold Montserrat)
+  // 5. Headline Text Block (Bold Montserrat, autoHeight, plenty of width)
   try {
     if (aiData.headline) {
       const textHeadline = cesdk.engine.block.create('text');
+      cesdk.engine.block.setName(textHeadline, 'ai_headline');
       cesdk.engine.block.replaceText(textHeadline, aiData.headline);
       cesdk.engine.block.setTextColor(textHeadline, { r: 1, g: 1, b: 1, a: 1 });
-      cesdk.engine.block.setWidth(textHeadline, targetW - 240);
+      cesdk.engine.block.setWidth(textHeadline, targetW - 140);
+      cesdk.engine.block.setHeight(textHeadline, 260);
+      try {
+        cesdk.engine.block.setHeightMode(textHeadline, 'Auto');
+      } catch (err) {}
       cesdk.engine.block.setPositionX(textHeadline, 70);
       cesdk.engine.block.setPositionY(textHeadline, 80);
       try {
-        cesdk.engine.block.setFloat(textHeadline, 'text/fontSize', 68);
+        cesdk.engine.block.setFloat(textHeadline, 'text/fontSize', 64);
       } catch (err) {}
       cesdk.engine.block.appendChild(page, textHeadline);
     }
@@ -445,11 +755,16 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
   try {
     if (aiData.subheadline) {
       const textSub = cesdk.engine.block.create('text');
+      cesdk.engine.block.setName(textSub, 'ai_subheadline');
       cesdk.engine.block.replaceText(textSub, aiData.subheadline);
       cesdk.engine.block.setTextColor(textSub, { r: 0.8, g: 0.85, b: 0.95, a: 1 });
-      cesdk.engine.block.setWidth(textSub, targetW - 180);
+      cesdk.engine.block.setWidth(textSub, targetW - 140);
+      cesdk.engine.block.setHeight(textSub, 120);
+      try {
+        cesdk.engine.block.setHeightMode(textSub, 'Auto');
+      } catch (err) {}
       cesdk.engine.block.setPositionX(textSub, 70);
-      cesdk.engine.block.setPositionY(textSub, 290);
+      cesdk.engine.block.setPositionY(textSub, 300);
       try {
         cesdk.engine.block.setFloat(textSub, 'text/fontSize', 32);
       } catch (err) {}
@@ -463,21 +778,23 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
   try {
     const badgeTextStr = aiData.badge || 'SEKOLAH UNGGULAN';
     const badgeBg = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setName(badgeBg, 'ai_badge_bg');
     cesdk.engine.block.setShape(badgeBg, cesdk.engine.block.createShape('rect'));
     const badgeFill = cesdk.engine.block.createFill('color');
     cesdk.engine.block.setColor(badgeFill, 'fill/color/value', hexToRgba(aiData.colors?.accent || '#f59e0b'));
     cesdk.engine.block.setFill(badgeBg, badgeFill);
-    cesdk.engine.block.setWidth(badgeBg, 290);
+    cesdk.engine.block.setWidth(badgeBg, 320);
     cesdk.engine.block.setHeight(badgeBg, 56);
-    cesdk.engine.block.setPositionX(badgeBg, targetW - 350);
+    cesdk.engine.block.setPositionX(badgeBg, targetW - 360);
     cesdk.engine.block.setPositionY(badgeBg, targetH - 96);
     cesdk.engine.block.appendChild(page, badgeBg);
 
     const textBadge = cesdk.engine.block.create('text');
+    cesdk.engine.block.setName(textBadge, 'ai_badge');
     cesdk.engine.block.replaceText(textBadge, badgeTextStr);
     cesdk.engine.block.setTextColor(textBadge, { r: 1, g: 1, b: 1, a: 1 });
-    cesdk.engine.block.setWidth(textBadge, 270);
-    cesdk.engine.block.setPositionX(textBadge, targetW - 340);
+    cesdk.engine.block.setWidth(textBadge, 300);
+    cesdk.engine.block.setPositionX(textBadge, targetW - 350);
     cesdk.engine.block.setPositionY(textBadge, targetH - 86);
     try {
       cesdk.engine.block.setFloat(textBadge, 'text/fontSize', 22);

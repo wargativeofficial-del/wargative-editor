@@ -4,7 +4,7 @@
  */
 
 import { callGemini } from '../common/geminiService';
-import { saveProjectMeta, ProjectItem } from '../common/projectStore';
+import { saveProjectMeta, getProject, ProjectItem } from '../common/projectStore';
 
 export interface DesignData {
   headline: string;
@@ -34,6 +34,7 @@ export interface ChatMessageItem {
 
 export interface ChatSession {
   id: string;
+  projectId?: string;
   title: string;
   createdAt: number;
   messages: ChatMessageItem[];
@@ -49,6 +50,7 @@ class WargativeAIChatManager {
   private activeSessionId: string = '';
   private isThinking: boolean = false;
   private activeMode: string = '';
+  private syncChannel!: BroadcastChannel;
 
   // DOM Elements
   private chatTabsList!: HTMLElement;
@@ -120,6 +122,7 @@ class WargativeAIChatManager {
 
   constructor() {
     this.initDOM();
+    this.initSyncChannel();
     this.loadSessions();
     this.bindEvents();
     this.bindCanvasEditorEvents();
@@ -185,6 +188,160 @@ class WargativeAIChatManager {
     this.btnRedo = document.getElementById('btnRedo') as HTMLButtonElement;
   }
 
+  private initSyncChannel() {
+    this.syncChannel = new BroadcastChannel('wargative_live_sync_channel');
+    this.syncChannel.onmessage = (event) => {
+      this.handleSyncFromEditor(event.data);
+    };
+
+    window.addEventListener('storage', (e) => {
+      const session = this.getActiveSession();
+      if (!session) return;
+      const projId = session.projectId || `proj_ai_${session.id}`;
+      if (e.key === `wargative_ai_live_sync_${projId}` || e.key === 'wargative_ai_transfer_design') {
+        if (!e.newValue) return;
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const data = parsed.data || parsed;
+          this.handleSyncFromEditor({ data });
+        } catch (err) {}
+      }
+    });
+
+    window.addEventListener('focus', () => {
+      this.checkPendingEditorSync();
+    });
+  }
+
+  private checkPendingEditorSync() {
+    const session = this.getActiveSession();
+    if (!session || !session.currentDesign) return;
+    const projId = session.projectId || `proj_ai_${session.id}`;
+    const raw = localStorage.getItem(`wargative_ai_live_sync_${projId}`) || localStorage.getItem('wargative_ai_transfer_design');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        const data = parsed.data || parsed;
+        if (data && (data.headline || data.subheadline || data.badge)) {
+          this.handleSyncFromEditor({ data });
+        }
+      } catch (e) {}
+    }
+  }
+
+  private handleSyncFromEditor(msg: any) {
+    if (!msg || !msg.data) return;
+    const session = this.getActiveSession();
+    if (!session || !session.currentDesign) return;
+    const projId = session.projectId || `proj_ai_${session.id}`;
+    if (msg.projectId && msg.projectId !== projId) return;
+
+    const data = session.currentDesign;
+    let changed = false;
+
+    if (msg.data.headline !== undefined && msg.data.headline !== data.headline) {
+      data.headline = msg.data.headline;
+      changed = true;
+      const hl = document.getElementById('liveHeadlineEl');
+      if (hl && hl.innerText.trim() !== msg.data.headline) {
+        hl.innerText = msg.data.headline;
+      }
+      if (this.canvasProjectName) {
+        this.canvasProjectName.textContent = msg.data.headline;
+      }
+    }
+
+    if (msg.data.subheadline !== undefined && msg.data.subheadline !== data.subheadline) {
+      data.subheadline = msg.data.subheadline;
+      changed = true;
+      const sh = document.getElementById('liveSubheadlineEl');
+      if (sh && sh.innerText.trim() !== msg.data.subheadline) {
+        sh.innerText = msg.data.subheadline;
+      }
+    }
+
+    if (msg.data.badge !== undefined && msg.data.badge !== data.badge) {
+      data.badge = msg.data.badge;
+      changed = true;
+      const bg = document.getElementById('liveBadgeEl');
+      if (bg && bg.innerText.trim() !== msg.data.badge) {
+        bg.innerText = msg.data.badge;
+      }
+    }
+
+    if (changed) {
+      this.updateChatPreviewCard(data);
+      this.saveSessions();
+    }
+  }
+
+  private updateChatPreviewCard(data: DesignData) {
+    const session = this.getActiveSession();
+    if (session && session.messages) {
+      const summaryMsg = session.messages.slice().reverse().find((m) => m.type === 'summary_card' && m.designData);
+      if (summaryMsg && summaryMsg.designData) {
+        summaryMsg.designData.headline = data.headline;
+        summaryMsg.designData.subheadline = data.subheadline;
+        if (data.badge) summaryMsg.designData.badge = data.badge;
+      }
+    }
+
+    document.querySelectorAll('.chat-poster-headline').forEach((el) => {
+      el.textContent = data.headline;
+    });
+    document.querySelectorAll('.chat-poster-subheadline').forEach((el) => {
+      el.textContent = data.subheadline;
+    });
+    document.querySelectorAll('.chat-poster-badge').forEach((el) => {
+      if (data.badge) el.textContent = data.badge;
+    });
+  }
+
+  private broadcastAiChangeToEditor(data: DesignData) {
+    const session = this.getActiveSession();
+    if (!session) return;
+    if (!session.projectId) session.projectId = `proj_ai_${session.id}`;
+    const projectId = session.projectId;
+
+    const payload = {
+      type: 'AI_TO_EDITOR',
+      projectId,
+      timestamp: Date.now(),
+      data: {
+        headline: data.headline,
+        subheadline: data.subheadline,
+        badge: data.badge,
+        colors: data.colors,
+        imageUrl: data.imageUrl,
+        width: data.width,
+        height: data.height
+      }
+    };
+
+    try {
+      this.syncChannel.postMessage(payload);
+    } catch (e) {}
+
+    try {
+      localStorage.setItem(`wargative_ai_live_sync_${projectId}`, JSON.stringify(payload));
+      localStorage.setItem(
+        'wargative_ai_transfer_design',
+        JSON.stringify({
+          ...data,
+          projectId,
+          updatedAt: Date.now()
+        })
+      );
+
+      const meta = getProject(projectId);
+      if (meta) {
+        meta.title = data.headline;
+        meta.updatedAt = Date.now();
+        saveProjectMeta(meta);
+      }
+    } catch (e) {}
+  }
+
   private loadSessions() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -196,8 +353,10 @@ class WargativeAIChatManager {
     }
 
     if (!this.sessions || this.sessions.length === 0) {
+      const id = `chat-${Date.now()}`;
       const initialSession: ChatSession = {
-        id: `chat-${Date.now()}`,
+        id,
+        projectId: `proj_ai_${id}`,
         title: 'Obrolan baru',
         createdAt: Date.now(),
         messages: []
@@ -206,6 +365,11 @@ class WargativeAIChatManager {
       this.activeSessionId = initialSession.id;
       this.saveSessions();
     } else {
+      this.sessions.forEach((s) => {
+        if (!s.projectId) {
+          s.projectId = `proj_ai_${s.id}`;
+        }
+      });
       this.activeSessionId = this.sessions[0].id;
     }
   }
@@ -228,8 +392,10 @@ class WargativeAIChatManager {
   }
 
   public createNewSession() {
+    const id = `chat-${Date.now()}`;
     const newSession: ChatSession = {
-      id: `chat-${Date.now()}`,
+      id,
+      projectId: `proj_ai_${id}`,
       title: 'Obrolan baru',
       createdAt: Date.now(),
       messages: []
@@ -571,7 +737,11 @@ class WargativeAIChatManager {
         const designData = await this.generateDesignJSON(session.pendingFormat || 'Buat postingan media sosial.', topic);
 
         this.hideStatusPill();
+        if (!session.projectId) {
+          session.projectId = `proj_ai_${session.id}`;
+        }
         session.currentDesign = designData;
+        this.broadcastAiChangeToEditor(designData);
 
         // 5. Add model summary message
         session.messages.push({
@@ -862,8 +1032,20 @@ Format JSON yang WAJIB dihasilkan:
         if (el.id === 'liveHeadlineEl') data.headline = el.innerText.trim();
         else if (el.id === 'liveSubheadlineEl') data.subheadline = el.innerText.trim();
         else if (el.id === 'liveBadgeEl') data.badge = el.innerText.trim();
+        this.updateChatPreviewCard(data);
+        if (this.canvasProjectName) this.canvasProjectName.textContent = data.headline;
         this.saveSessions();
         this.pushCanvasState();
+        this.broadcastAiChangeToEditor(data);
+      };
+      el.onblur = () => {
+        if (el.id === 'liveHeadlineEl') data.headline = el.innerText.trim();
+        else if (el.id === 'liveSubheadlineEl') data.subheadline = el.innerText.trim();
+        else if (el.id === 'liveBadgeEl') data.badge = el.innerText.trim();
+        this.updateChatPreviewCard(data);
+        if (this.canvasProjectName) this.canvasProjectName.textContent = data.headline;
+        this.saveSessions();
+        this.broadcastAiChangeToEditor(data);
       };
       this.initElementDragging(el);
     });
@@ -1038,18 +1220,39 @@ Format JSON yang WAJIB dihasilkan:
 
     const session = this.getActiveSession();
     session.currentDesign = latestData;
+    if (!session.projectId) {
+      session.projectId = `proj_ai_${session.id}`;
+    }
+    const projectId = session.projectId;
     this.saveSessions();
 
-    const projectId = `proj_ai_${Date.now()}`;
+    const transferPayload = {
+      ...latestData,
+      projectId,
+      updatedAt: Date.now()
+    };
 
     // Store transfer data for CE.SDK scene builder in src/index.ts
+    localStorage.setItem('wargative_ai_transfer_design', JSON.stringify(transferPayload));
     localStorage.setItem(
-      'wargative_ai_transfer_design',
+      `wargative_ai_live_sync_${projectId}`,
       JSON.stringify({
-        ...latestData,
-        projectId
+        type: 'AI_TO_EDITOR',
+        projectId,
+        timestamp: Date.now(),
+        data: transferPayload
       })
     );
+
+    // Broadcast immediately so if editor is already open in another tab, it syncs immediately!
+    try {
+      this.syncChannel.postMessage({
+        type: 'AI_TO_EDITOR',
+        projectId,
+        timestamp: Date.now(),
+        data: transferPayload
+      });
+    } catch (e) {}
 
     const projectItem: ProjectItem = {
       id: projectId,
