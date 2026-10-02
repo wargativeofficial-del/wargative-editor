@@ -100,16 +100,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const shortLivedToken = tokenData.access_token;
     const rawUserId = String(tokenData.user_id || '');
 
-    // 5. Exchange for Long-Lived User Access Token
-    // Dynamic Graph API version (default v21.0 or from env)
-    const apiVersion = process.env.META_GRAPH_VERSION || 'v21.0';
-    
-    // Attempt versioned GET request to https://graph.instagram.com/{apiVersion}/access_token
-    const longLivedUrl = `https://graph.instagram.com/${apiVersion}/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(instagramAppSecret)}&access_token=${encodeURIComponent(shortLivedToken)}`;
+    // 5. Exchange for Long-Lived User Access Token (~60 days validity)
+    // Official Instagram Login endpoints on graph.instagram.com are unversioned
+    const longLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(instagramAppSecret)}&access_token=${encodeURIComponent(shortLivedToken)}`;
     let longLivedRes = await fetch(longLivedUrl, { method: 'GET' });
     let longLivedData = await longLivedRes.json().catch(() => null);
 
-    // If versioned GET returns error, retry via POST application/x-www-form-urlencoded
+    // If GET returns error, retry via POST application/x-www-form-urlencoded
     if (!longLivedData || longLivedData.error || !longLivedData.access_token) {
       console.warn('[API /auth/instagram/callback] GET long-lived exchange failed, retrying via POST:', longLivedData?.error);
       const postBody = new URLSearchParams({
@@ -117,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         client_secret: instagramAppSecret,
         access_token: shortLivedToken
       });
-      const postRes = await fetch(`https://graph.instagram.com/${apiVersion}/access_token`, {
+      const postRes = await fetch('https://graph.instagram.com/access_token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -125,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: postBody.toString()
       });
       const postData = await postRes.json().catch(() => null);
-      if (postData && postData.access_token) {
+      if (postData) {
         longLivedData = postData;
       }
     }
@@ -145,14 +142,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 6. Fetch Instagram User Profile
     // Always use official /me endpoint on graph.instagram.com for Instagram Login
     // Primary query: id, username, account_type, profile_picture_url
-    let profileUrl = `https://graph.instagram.com/${apiVersion}/me?fields=id,username,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
+    let profileUrl = `https://graph.instagram.com/me?fields=id,username,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
     let profileRes = await fetch(profileUrl);
     let profileData = await profileRes.json().catch(() => null);
 
     // If extended fields are not permitted, retry with core fields: id, username, account_type
     if (!profileData || profileData.error) {
       console.warn('[API /auth/instagram/callback] Profile fetch with full fields failed, retrying with core fields:', profileData?.error);
-      const coreProfileUrl = `https://graph.instagram.com/${apiVersion}/me?fields=id,username,account_type&access_token=${encodeURIComponent(finalAccessToken)}`;
+      const coreProfileUrl = `https://graph.instagram.com/me?fields=id,username,account_type&access_token=${encodeURIComponent(finalAccessToken)}`;
       const coreRes = await fetch(coreProfileUrl);
       const coreData = await coreRes.json().catch(() => null);
       if (coreData && !coreData.error) {
