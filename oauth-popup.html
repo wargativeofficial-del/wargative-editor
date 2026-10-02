@@ -427,7 +427,8 @@
         if (channel === 'instagram' || channel === 'facebook' || channel === 'threads') {
           btnDirectMetaOAuth.addEventListener('click', () => {
             const redirectUri = window.location.origin + '/oauth-popup.html';
-            const scope = 'instagram_basic,instagram_content_publish,pages_show_list,pages_manage_posts,pages_read_engagement';
+            // Default to safe public_profile & email so Meta dialog loads without 'Invalid Scopes' error
+            const scope = 'public_profile,email';
             const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
             window.location.href = authUrl;
           });
