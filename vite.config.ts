@@ -12,7 +12,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         home: resolve(__dirname, 'home.html'),
-        templates: resolve(__dirname, 'templates.html')
+        templates: resolve(__dirname, 'templates.html'),
+        ai: resolve(__dirname, 'wargative-ai.html')
       }
     }
   }

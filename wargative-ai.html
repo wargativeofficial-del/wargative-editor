@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>✨</text></svg>"
+    />
+    <meta name="author" content="Bayu Pamungkas" />
+    <meta name="description" content="Wargative AI Magic Studio - Powered by Gemini 3.8 Flash" />
+    <title>Wargative AI Magic Studio - Powered by Gemini 3.8 Flash</title>
+    <link rel="stylesheet" href="./src/ai/ai.css" />
+  </head>
+  <body>
+    <!-- ====================================================================
+         SLIM SIDEBAR (Canva Style)
+         ==================================================================== -->
+    <aside class="sidebar">
+      <a href="./home.html" class="sidebar-logo" title="Wargative Home">W</a>
+
+      <div class="create-btn-wrapper">
+        <button class="btn-create" onclick="window.location.href='./home.html?openCreate=true'" title="Create a design">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+        <span class="create-label">Create</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="./home.html" class="nav-item" title="Home">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Home</span>
+        </a>
+
+        <a href="./home.html#projects" class="nav-item" title="Projects">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+          <span>Projects</span>
+        </a>
+
+        <a href="./templates.html" class="nav-item" title="Templates">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+          </svg>
+          <span>Templates</span>
+        </a>
+
+        <a href="./wargative-ai.html" class="nav-item active ai-item" title="Wargative AI">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>AI Studio</span>
+        </a>
+
+        <a href="./home.html#brand" class="nav-item" title="Brand Kit">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          <span>Brand</span>
+        </a>
+
+        <a href="./index.html" class="nav-item" title="Open Studio Editor">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span>Editor</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-avatar" title="Wargative Official (Bayu Pamungkas)">W</div>
+      </div>
+    </aside>
+
+    <!-- ====================================================================
+         MAIN SCROLLABLE CONTENT
+         ==================================================================== -->
+    <main class="main-wrapper">
+      <!-- Top Header -->
+      <div class="top-header-bar">
+        <div class="gemini-model-badge">
+          <span class="gemini-pulse-dot"></span>
+          <span>Google Gemini 3.8 Flash Connected</span>
+        </div>
+        <a href="./home.html" style="font-size: 13px; font-weight: 700; color: #7047eb; text-decoration: none;">
+          &larr; Back to Home
+        </a>
+      </div>
+
+      <!-- Hero Banner -->
+      <section class="ai-hero-banner">
+        <h1 class="ai-hero-title">
+          <span>✨</span> Wargative AI Magic Studio
+        </h1>
+        <p class="ai-hero-subtitle">
+          Supercharge alur kerja kreatif Anda. Buat konsep visual, copywriting viral, palet warna presisi, dan konsultasi desain langsung dengan Gemini 3.8 Flash.
+        </p>
+
+        <!-- Tool Mode Tabs -->
+        <div class="ai-mode-tabs">
+          <button class="ai-tab-btn active" data-tab="concept">
+            <span>🪄</span> Magic Design
+          </button>
+          <button class="ai-tab-btn" data-tab="copywriter">
+            <span>✍️</span> Magic Write & Copy
+          </button>
+          <button class="ai-tab-btn" data-tab="palette">
+            <span>🎨</span> Smart Palette
+          </button>
+          <button class="ai-tab-btn" data-tab="copilot">
+            <span>💬</span> AI Co-Pilot Chat
+          </button>
+        </div>
+      </section>
+
+      <!-- Content Area -->
+      <div class="ai-content-wrapper">
+        <!-- ================================================================
+             TAB 1: MAGIC DESIGN (Concept to Canvas)
+             ================================================================ -->
+        <div class="ai-tool-panel" id="panel-concept">
+          <div class="ai-tool-card">
+            <div class="tool-header-row">
+              <div>
+                <h2 class="tool-title"><span>🪄</span> Magic Design (Concept to Canvas)</h2>
+                <p class="tool-desc">Tuliskan ide atau tema desain Anda, Gemini 3.8 Flash akan merancang struktur teks, hierarki visual, palet warna, dan langsung menyiapkannya ke Studio.</p>
+              </div>
+            </div>
+
+            <div class="ai-form-group">
+              <label class="ai-label">Deskripsi Ide Desain</label>
+              <textarea
+                id="designPromptInput"
+                class="ai-textarea"
+                placeholder="Contoh: Poster promo grand opening coffee shop estetik diskon 50%, tema warm vintage matcha..."
+              ></textarea>
+            </div>
+
+            <!-- Suggestion Chips -->
+            <div class="suggestion-chips-row">
+              <span class="chip-label">Inspirasi:</span>
+              <button class="prompt-chip" data-target="design" data-prompt="Poster promo grand opening coffee shop diskon 50% tema warm minimalist">☕ Grand Opening Coffee</button>
+              <button class="prompt-chip" data-target="design" data-prompt="Instagram feed launching produk skincare glowing alami dengan pastel tones">✨ Launching Skincare</button>
+              <button class="prompt-chip" data-target="design" data-prompt="Banner webinar AI & Desain Grafis Masa Depan untuk profesional muda">🚀 Webinar Tech AI</button>
+              <button class="prompt-chip" data-target="design" data-prompt="Poster festival musik jazz senja outdoor nuansa twilight purple">🎷 Festival Musik Jazz</button>
+            </div>
+
+            <button class="btn-ai-generate" id="btnGenerateDesign">
+              <span>🪄</span> Rancang Konsep Desain
+            </button>
+
+            <!-- Output Box -->
+            <div id="designResultBox" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- ================================================================
+             TAB 2: MAGIC WRITE & COPYWRITER
+             ================================================================ -->
+        <div class="ai-tool-panel" id="panel-copywriter" style="display: none;">
+          <div class="ai-tool-card">
+            <div class="tool-header-row">
+              <div>
+                <h2 class="tool-title"><span>✍️</span> Magic Write & Copywriter</h2>
+                <p class="tool-desc">Buat caption Instagram viral, headline iklan yang mengonversi tinggi, dan tagline memikat dalam hitungan detik.</p>
+              </div>
+            </div>
+
+            <div class="ai-form-group">
+              <label class="ai-label">Topik, Produk, atau Pesan</label>
+              <textarea
+                id="copyPromptInput"
+                class="ai-textarea"
+                placeholder="Contoh: Jasa desain grafis profesional wargative studio dengan revisi kilat dan lisensi komersial..."
+              ></textarea>
+            </div>
+
+            <div class="ai-select-row">
+              <div class="ai-select-box">
+                <label class="ai-label">Format Konten</label>
+                <select id="copyTypeSelect" class="ai-select">
+                  <option value="instagram" selected>📱 Instagram Caption + Hashtags</option>
+                  <option value="headline">🎯 5 Headline Iklan Catchy</option>
+                  <option value="slogan">💎 6 Tagline / Slogan Unik</option>
+                  <option value="promo">🔥 Naskah Promo / Flash Sale</option>
+                  <option value="product">📦 Deskripsi Produk (USP & Benefit)</option>
+                  <option value="script">🎬 Script Video Reels 30 Detik</option>
+                </select>
+              </div>
+
+              <div class="ai-select-box">
+                <label class="ai-label">Gaya Bahasa (Tone)</label>
+                <select id="copyToneSelect" class="ai-select">
+                  <option value="catchy" selected>⚡ Trendy & Viral (Kekinian)</option>
+                  <option value="professional">💼 Profesional & Kredibel</option>
+                  <option value="persuasive">🔥 Persuasif & Memicu Urgensi</option>
+                  <option value="friendly">🤝 Akrab & Hangat</option>
+                  <option value="luxury">👑 Mewah & Elegan</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Chips -->
+            <div class="suggestion-chips-row">
+              <span class="chip-label">Coba:</span>
+              <button class="prompt-chip" data-target="copy" data-prompt="Brand clothing lokal streetwear bahan cotton combed premium edisi terbatas">👕 Streetwear Brand</button>
+              <button class="prompt-chip" data-target="copy" data-prompt="Jasa kursus UI/UX design online mentor praktisi startup unicorn">💻 UI/UX Bootcamp</button>
+              <button class="prompt-chip" data-target="copy" data-prompt="Menu minuman matcha latte autentik Jepang dengan oat milk sehat">🍵 Authentic Matcha</button>
+            </div>
+
+            <button class="btn-ai-generate" id="btnGenerateCopy">
+              <span>✍️</span> Buat Copywriting
+            </button>
+
+            <!-- Output Box -->
+            <div id="copyResultBox" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- ================================================================
+             TAB 3: SMART PALETTE GENERATOR
+             ================================================================ -->
+        <div class="ai-tool-panel" id="panel-palette" style="display: none;">
+          <div class="ai-tool-card">
+            <div class="tool-header-row">
+              <div>
+                <h2 class="tool-title"><span>🎨</span> Smart Palette Generator</h2>
+                <p class="tool-desc">Dapatkan 5 perpaduan warna harmonis lengkap dengan kode HEX dan CSS Gradient siap pakai.</p>
+              </div>
+            </div>
+
+            <div class="ai-form-group">
+              <label class="ai-label">Tema / Vibe Palet</label>
+              <input
+                type="text"
+                id="paletteThemeInput"
+                class="ai-textarea"
+                style="min-height: 48px; padding: 12px 18px;"
+                placeholder="Contoh: Cyberpunk Neon Tokyo, Matcha Cafe Aesthetic, Sunset Golden Hour, Luxury Minimalist..."
+              />
+            </div>
+
+            <!-- Chips -->
+            <div class="suggestion-chips-row">
+              <span class="chip-label">Tema Populer:</span>
+              <button class="prompt-chip" data-target="palette" data-prompt="Sunset Golden Hour Warm Orange Violet">🌅 Sunset Golden Hour</button>
+              <button class="prompt-chip" data-target="palette" data-prompt="Cyberpunk Neon Electric Blue & Magenta">⚡ Cyberpunk Neon</button>
+              <button class="prompt-chip" data-target="palette" data-prompt="Matcha & Oatmilk Soft Earthy Pastel">🍵 Matcha & Oatmilk</button>
+              <button class="prompt-chip" data-target="palette" data-prompt="Luxury Obsidian Black with Champagne Gold">👑 Luxury Black & Gold</button>
+              <button class="prompt-chip" data-target="palette" data-prompt="Clean Corporate Navy Blue & Mint Emerald">💼 Modern Corporate</button>
+            </div>
+
+            <button class="btn-ai-generate" id="btnGeneratePalette">
+              <span>🎨</span> Racik Palet Warna
+            </button>
+
+            <!-- Output Box -->
+            <div id="paletteResultBox" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- ================================================================
+             TAB 4: AI CO-PILOT CHAT
+             ================================================================ -->
+        <div class="ai-tool-panel" id="panel-copilot" style="display: none;">
+          <div class="ai-tool-card">
+            <div class="tool-header-row">
+              <div>
+                <h2 class="tool-title"><span>💬</span> Wargative AI Co-Pilot (Live Brainstorming)</h2>
+                <p class="tool-desc">Konsultasikan ide desain, font pairing, strategi visual media sosial, dan review layout langsung dengan AI.</p>
+              </div>
+            </div>
+
+            <div class="chat-container">
+              <div class="chat-messages-box" id="chatMessagesBox">
+                <div class="chat-bubble model">
+                  <span>Halo! Saya <strong>Wargative AI Co-Pilot</strong> yang ditenagai Gemini 3.8 Flash. Apa ide desain atau strategi konten yang ingin Anda diskusikan hari ini? ✨</span>
+                </div>
+              </div>
+
+              <div class="chat-input-bar">
+                <input
+                  type="text"
+                  id="chatInputField"
+                  class="chat-input-field"
+                  placeholder="Ketik pertanyaan atau minta saran desain (misal: 'Rekomendasi font pairing untuk brand mewah')..."
+                />
+                <button class="btn-send-chat" id="btnSendChat">Kirim</button>
+              </div>
+            </div>
+
+            <!-- Chips -->
+            <div class="suggestion-chips-row">
+              <span class="chip-label">Tanya Cepat:</span>
+              <button class="prompt-chip" data-target="chat" data-prompt="Berikan 3 rekomendasi font pairing modern untuk poster teknologi">Font Pairing Tech</button>
+              <button class="prompt-chip" data-target="chat" data-prompt="Bagaimana cara mengatur hierarki visual teks agar headline menonjol?">Hierarki Visual Teks</button>
+              <button class="prompt-chip" data-target="chat" data-prompt="Ide konten Instagram 1 minggu untuk bisnis coffee shop kekinian">Ide Konten 1 Minggu</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script type="module" src="./src/ai/ai.ts"></script>
+  </body>
+</html>
