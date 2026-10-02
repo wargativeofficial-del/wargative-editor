@@ -46,7 +46,7 @@ export interface CalendarHoliday {
 const STORAGE_POSTS_KEY = 'wargative_scheduled_posts';
 const STORAGE_CONNECTIONS_KEY = 'wargative_social_connections';
 const STORAGE_VER_KEY = 'wargative_planner_ver';
-const CURRENT_VERSION = '1.3';
+const CURRENT_VERSION = '1.4';
 
 // Preset holidays and events matching Canva Content Planner screenshot (Image 1)
 const DEFAULT_HOLIDAYS: CalendarHoliday[] = [
@@ -193,23 +193,21 @@ export function getHolidays(year: number, month: number): CalendarHoliday[] {
   }).filter((h) => h.dateStr.startsWith(prefix));
 }
 
-// Default Social Connections
+// Default Social Connections - Initialized to disconnected so user can connect naturally
 const DEFAULT_CONNECTIONS: SocialAccountConnection[] = [
   {
     channelId: 'instagram',
     name: 'Instagram Business',
     handle: '@wargative.id',
-    connected: true,
-    avatarUrl: '',
-    connectedAt: Date.now() - 86400000 * 3
+    connected: false,
+    avatarUrl: ''
   },
   {
     channelId: 'facebook',
     name: 'Halaman Facebook',
     handle: 'Wargative Official Page',
-    connected: true,
-    avatarUrl: '',
-    connectedAt: Date.now() - 86400000 * 5
+    connected: false,
+    avatarUrl: ''
   },
   {
     channelId: 'tiktok',
@@ -233,9 +231,11 @@ const DEFAULT_CONNECTIONS: SocialAccountConnection[] = [
 
 export function getSocialConnections(): SocialAccountConnection[] {
   try {
+    const ver = localStorage.getItem(STORAGE_VER_KEY);
     const raw = localStorage.getItem(STORAGE_CONNECTIONS_KEY);
-    if (!raw) {
+    if (ver !== CURRENT_VERSION || !raw) {
       localStorage.setItem(STORAGE_CONNECTIONS_KEY, JSON.stringify(DEFAULT_CONNECTIONS));
+      localStorage.setItem(STORAGE_VER_KEY, CURRENT_VERSION);
       return DEFAULT_CONNECTIONS;
     }
     const parsed = JSON.parse(raw);

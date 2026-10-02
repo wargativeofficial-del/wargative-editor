@@ -538,6 +538,11 @@ class WargativeContentPlanner {
       this.instantConnectActiveChannel();
     });
 
+    const btnDisconnectChannel = document.getElementById('btnDisconnectChannel');
+    btnDisconnectChannel?.addEventListener('click', () => {
+      this.disconnectActiveChannel();
+    });
+
     // Listen for OAuth message callback from popup window
     window.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'WARGATIVE_SOCIAL_AUTH_SUCCESS') {
@@ -1309,7 +1314,19 @@ class WargativeContentPlanner {
       connectedAt: Date.now()
     });
 
-    this.showToast(`⚡ Akun ${this.activeConfigChannel.name} (${this.activeConfigChannel.demoHandle}) berhasil tersambung otomatis!`);
+    this.showToast(`⚡ Akun ${this.activeConfigChannel.name} (${this.activeConfigChannel.demoHandle}) berhasil tersambung!`);
+    this.closeChannelConfigModal();
+    this.renderConnectSocialList();
+    this.updateChannelButtonText();
+    this.renderChannelOptionsList();
+  }
+
+  private disconnectActiveChannel() {
+    if (!this.activeConfigChannel) return;
+
+    disconnectSocialConnection(this.activeConfigChannel.id);
+
+    this.showToast(` Akun ${this.activeConfigChannel.name} berhasil diputuskan (kembali ke Belum Terhubung).`);
     this.closeChannelConfigModal();
     this.renderConnectSocialList();
     this.updateChannelButtonText();
