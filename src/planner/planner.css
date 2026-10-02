@@ -464,6 +464,38 @@ body {
   border-right: none;
 }
 
+/* Calendar Loading Progress Bar */
+.calendar-loading-bar {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #7047eb, #c084fc, #7047eb);
+  background-size: 200% 100%;
+  animation: calendarLoadingSlide 1.2s ease-in-out infinite;
+  display: none;
+}
+
+.calendar-loading-bar.active {
+  display: block;
+}
+
+@keyframes calendarLoadingSlide {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* Calendar Cells Grid */
 .calendar-days-grid {
   display: grid;

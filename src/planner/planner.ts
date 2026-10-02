@@ -289,6 +289,7 @@ class WargativeContentPlanner {
   } | null = null;
   private miniCalViewDate: Date = new Date();
   private currentUserId: string | null = null;
+  private isLoadingPosts: boolean = true;
   private serverScheduledPosts: ScheduledPost[] = [];
   private serverConnections: Array<{
     id: string;
@@ -406,6 +407,8 @@ class WargativeContentPlanner {
     this.btnSaveChannelConfig = document.getElementById('btnSaveChannelConfig') as HTMLElement;
     this.btnInstantConnectChannel = document.getElementById('btnInstantConnectChannel') as HTMLElement;
     this.btnCancelChannelConfig = document.getElementById('btnCancelChannelConfig') as HTMLElement;
+
+    this.updateLoadingState();
   }
 
   private bindEvents() {
@@ -575,7 +578,9 @@ class WargativeContentPlanner {
 
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     const holidays = getHolidays(year, month + 1);
-    const allPosts = this.currentUserId ? this.serverScheduledPosts : getScheduledPosts();
+    // Source of truth: PostgreSQL /api/planner/posts
+    // Do NOT render DEFAULT_POSTS or localStorage posts while loading or as scheduled posts
+    const allPosts = this.isLoadingPosts ? [] : (this.currentUserId ? this.serverScheduledPosts : []);
 
     // 1. Previous month trailing days
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
@@ -1167,6 +1172,9 @@ class WargativeContentPlanner {
   }
 
   public async fetchScheduledPosts() {
+    this.isLoadingPosts = true;
+    this.updateLoadingState();
+
     try {
       const user = await getCurrentUser();
       this.currentUserId = user ? user.id : null;
@@ -1187,8 +1195,6 @@ class WargativeContentPlanner {
               const y = d.getFullYear();
               const m = String(d.getMonth() + 1).padStart(2, '0');
               const day = String(d.getDate()).padStart(2, '0');
-              const hh = String(d.getHours()).padStart(2, '0');
-              const mm = String(d.getMinutes()).padStart(2, '0');
 
               const channelInfo = SOCIAL_CHANNELS.find((sc) => sc.id === p.platform) || SOCIAL_CHANNELS[0];
               const connHandle = p.social_connections?.account_handle ? `@${p.social_connections.account_handle}` : '';
@@ -1213,11 +1219,34 @@ class WargativeContentPlanner {
                 createdAt: new Date(p.created_at).getTime()
               };
             });
+          } else {
+            console.error('[Planner] Format data server tidak sesuai:', data);
+            this.showToast('⚠️ Gagal memuat jadwal: Format data tidak sesuai.');
           }
         }
+      } else {
+        const errData = await res.json().catch(() => null);
+        const errMsg = errData?.message || errData?.error || `HTTP ${res.status}`;
+        console.error('[Planner] Server error saat memuat jadwal:', errMsg);
+        this.showToast(`⚠️ Gagal memuat jadwal dari database: ${errMsg}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[Planner] Gagal mengambil scheduled posts dari server:', err);
+      this.showToast('⚠️ Gagal terhubung ke database untuk memuat jadwal postingan.');
+    } finally {
+      this.isLoadingPosts = false;
+      this.updateLoadingState();
+    }
+  }
+
+  private updateLoadingState() {
+    const loadingBar = document.getElementById('calendarLoadingBar');
+    if (loadingBar) {
+      if (this.isLoadingPosts) {
+        loadingBar.classList.add('active');
+      } else {
+        loadingBar.classList.remove('active');
+      }
     }
   }
 
@@ -2050,6 +2079,9 @@ class WargativeContentPlanner {
   // Auto-Publisher Background Scheduler
   private startAutoPublishScheduler() {
     setInterval(() => {
+      // PostgreSQL /api/planner/posts is the source of truth for logged-in users
+      if (this.currentUserId) return;
+
       const now = new Date();
       const y = now.getFullYear();
       const m = now.getMonth() + 1 < 10 ? `0${now.getMonth() + 1}` : `${now.getMonth() + 1}`;
