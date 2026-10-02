@@ -11,8 +11,8 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { authenticateRequest } from '../../_lib/authMiddleware';
-import { getSupabaseAdmin } from '../../_lib/supabaseAdmin';
+import { authenticateRequest } from '../../_lib/authMiddleware.js';
+import { getSupabaseAdmin } from '../../_lib/supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

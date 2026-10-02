@@ -9,8 +9,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticateRequest } from '../_lib/authMiddleware';
-import { getSupabaseUserClient } from '../_lib/supabaseAdmin';
+import { authenticateRequest } from '../_lib/authMiddleware.js';
+import { getSupabaseUserClient } from '../_lib/supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Allow only POST requests
