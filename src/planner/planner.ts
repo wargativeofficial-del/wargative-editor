@@ -389,7 +389,15 @@ class WargativeContentPlanner {
         const pageToken = selectedOption.getAttribute('data-token') || '';
         const pageId = selectedOption.value;
 
-        if (this.configChannelHandle) this.configChannelHandle.value = pageName;
+        if (this.configChannelHandle) {
+          if (this.activeConfigChannel?.id === 'instagram') {
+            this.configChannelHandle.value = pageName.startsWith('@')
+              ? pageName
+              : `@${pageName.toLowerCase().replace(/[^a-z0-9_.]/g, '')}`;
+          } else {
+            this.configChannelHandle.value = pageName;
+          }
+        }
         if (this.configChannelAccountId) this.configChannelAccountId.value = pageId;
         if (this.configChannelToken && pageToken) this.configChannelToken.value = pageToken;
       }
@@ -1235,14 +1243,13 @@ class WargativeContentPlanner {
             ${isConn ? '● Terhubung' : 'Belum Terhubung'}
           </span>
           <button type="button" class="btn-channel-action ${isConn ? 'manage' : 'connect'}">
-            ${isConn ? 'Kelola' : 'Hubungkan'}
+            ${isConn ? '⇄ Ganti Akun' : 'Hubungkan'}
           </button>
         </div>
       `;
 
-      item.addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        if (isConn && target.classList.contains('manage')) {
+      item.addEventListener('click', () => {
+        if (isConn) {
           this.openChannelConfigModal(channel);
         } else {
           this.showStepConnectFlow(channel);
@@ -1284,7 +1291,17 @@ class WargativeContentPlanner {
 
     const conn = getSocialConnection(channel.id);
     if (this.configChannelHandle) {
-      this.configChannelHandle.value = conn?.handle || channel.demoHandle;
+      if (channel.id === 'instagram') {
+        if (conn && conn.handle && conn.handle.startsWith('@')) {
+          this.configChannelHandle.value = conn.handle;
+        } else if (conn && conn.handle) {
+          this.configChannelHandle.value = '@' + conn.handle.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+        } else {
+          this.configChannelHandle.value = channel.demoHandle;
+        }
+      } else {
+        this.configChannelHandle.value = conn?.handle || channel.demoHandle;
+      }
     }
     if (this.configChannelToken) {
       this.configChannelToken.value = conn?.accessToken || '';
