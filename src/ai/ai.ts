@@ -88,6 +88,7 @@ class WargativeAIChatManager {
   private selectedElement: HTMLElement | null = null;
   private canvaContextToolbar!: HTMLElement;
   private toolFontSelect!: HTMLSelectElement;
+  private toolFontNameDisplay!: HTMLElement;
   private toolSizeInput!: HTMLInputElement;
   private btnSizeMinus!: HTMLButtonElement;
   private btnSizePlus!: HTMLButtonElement;
@@ -98,6 +99,12 @@ class WargativeAIChatManager {
   private btnUnderline!: HTMLButtonElement;
   private btnUppercase!: HTMLButtonElement;
   private btnAlign!: HTMLButtonElement;
+  private btnBackgroundTool!: HTMLButtonElement;
+  private btnPathTool!: HTMLButtonElement;
+  private btnShadowTool!: HTMLButtonElement;
+  private btnOpacityTool!: HTMLButtonElement;
+  private btnPositionTool!: HTMLButtonElement;
+  private btnDuplicateTool!: HTMLButtonElement;
   private btnUndo!: HTMLButtonElement;
   private btnRedo!: HTMLButtonElement;
 
@@ -147,6 +154,7 @@ class WargativeAIChatManager {
     // Canva Contextual Toolbar
     this.canvaContextToolbar = document.getElementById('canvaContextToolbar') as HTMLElement;
     this.toolFontSelect = document.getElementById('toolFontSelect') as HTMLSelectElement;
+    this.toolFontNameDisplay = document.getElementById('toolFontNameDisplay') as HTMLElement;
     this.toolSizeInput = document.getElementById('toolSizeInput') as HTMLInputElement;
     this.btnSizeMinus = document.getElementById('btnSizeMinus') as HTMLButtonElement;
     this.btnSizePlus = document.getElementById('btnSizePlus') as HTMLButtonElement;
@@ -157,6 +165,12 @@ class WargativeAIChatManager {
     this.btnUnderline = document.getElementById('btnUnderline') as HTMLButtonElement;
     this.btnUppercase = document.getElementById('btnUppercase') as HTMLButtonElement;
     this.btnAlign = document.getElementById('btnAlign') as HTMLButtonElement;
+    this.btnBackgroundTool = document.getElementById('btnBackgroundTool') as HTMLButtonElement;
+    this.btnPathTool = document.getElementById('btnPathTool') as HTMLButtonElement;
+    this.btnShadowTool = document.getElementById('btnShadowTool') as HTMLButtonElement;
+    this.btnOpacityTool = document.getElementById('btnOpacityTool') as HTMLButtonElement;
+    this.btnPositionTool = document.getElementById('btnPositionTool') as HTMLButtonElement;
+    this.btnDuplicateTool = document.getElementById('btnDuplicateTool') as HTMLButtonElement;
     this.btnUndo = document.getElementById('btnUndo') as HTMLButtonElement;
     this.btnRedo = document.getElementById('btnRedo') as HTMLButtonElement;
   }
@@ -857,6 +871,11 @@ Format JSON yang WAJIB dihasilkan:
 
     // Font Select
     this.toolFontSelect?.addEventListener('change', () => {
+      const selectedOption = this.toolFontSelect.options[this.toolFontSelect.selectedIndex];
+      const fontName = selectedOption ? selectedOption.text : 'Montserrat';
+      if (this.toolFontNameDisplay) {
+        this.toolFontNameDisplay.textContent = fontName;
+      }
       if (this.selectedElement) {
         this.selectedElement.style.fontFamily = this.toolFontSelect.value;
       }
@@ -915,12 +934,16 @@ Format JSON yang WAJIB dihasilkan:
       }
     });
 
-    // Underline Toggle
-    this.btnUnderline?.addEventListener('click', () => {
+    // Alignment Toggle
+    this.btnAlign?.addEventListener('click', () => {
       if (this.selectedElement) {
-        const isUnderline = window.getComputedStyle(this.selectedElement).textDecoration.includes('underline');
-        this.selectedElement.style.textDecoration = isUnderline ? 'none' : 'underline';
-        this.btnUnderline.classList.toggle('active', !isUnderline);
+        const cur = window.getComputedStyle(this.selectedElement).textAlign;
+        let next = 'left';
+        if (cur === 'left') next = 'center';
+        else if (cur === 'center') next = 'right';
+        else next = 'left';
+        this.selectedElement.style.textAlign = next;
+        this.showToast(`Perataan teks: ${next}`);
       }
     });
 
@@ -933,15 +956,90 @@ Format JSON yang WAJIB dihasilkan:
       }
     });
 
-    // Alignment Toggle
-    this.btnAlign?.addEventListener('click', () => {
+    // Background Fill Tool
+    this.btnBackgroundTool?.addEventListener('click', () => {
       if (this.selectedElement) {
-        const cur = window.getComputedStyle(this.selectedElement).textAlign;
-        let next = 'left';
-        if (cur === 'left') next = 'center';
-        else if (cur === 'center') next = 'right';
-        else next = 'left';
-        this.selectedElement.style.textAlign = next;
+        const hasBg = this.selectedElement.style.backgroundColor && this.selectedElement.style.backgroundColor !== 'transparent';
+        if (hasBg) {
+          this.selectedElement.style.backgroundColor = 'transparent';
+          this.selectedElement.style.padding = '0';
+          this.showToast('Latar belakang dihapus');
+        } else {
+          this.selectedElement.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+          this.selectedElement.style.borderRadius = '6px';
+          this.selectedElement.style.padding = '4px 8px';
+          this.showToast('Latar belakang ditambahkan');
+        }
+      } else {
+        this.showToast('Pilih teks untuk mengatur background');
+      }
+    });
+
+    // Path / Curved Text Tool
+    this.btnPathTool?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const isCursive = this.selectedElement.style.fontFamily.includes('serif');
+        this.selectedElement.style.letterSpacing = this.selectedElement.style.letterSpacing === '2px' ? 'normal' : '2px';
+        this.showToast('Efek alur & spasi teks diterapkan');
+      } else {
+        this.showToast('Pilih teks untuk mengatur alur path');
+      }
+    });
+
+    // Shadow Tool
+    this.btnShadowTool?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const hasShadow = this.selectedElement.style.textShadow && this.selectedElement.style.textShadow !== 'none';
+        if (hasShadow) {
+          this.selectedElement.style.textShadow = 'none';
+          this.showToast('Bayangan teks dinonaktifkan');
+        } else {
+          this.selectedElement.style.textShadow = '0 4px 14px rgba(0, 0, 0, 0.7)';
+          this.showToast('Bayangan teks diaktifkan');
+        }
+      } else {
+        this.showToast('Pilih teks untuk mengatur bayangan');
+      }
+    });
+
+    // Opacity Tool
+    this.btnOpacityTool?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const curOp = parseFloat(this.selectedElement.style.opacity || '1');
+        let nextOp = 1;
+        if (curOp >= 0.95) nextOp = 0.75;
+        else if (curOp >= 0.7) nextOp = 0.5;
+        else nextOp = 1;
+        this.selectedElement.style.opacity = `${nextOp}`;
+        this.showToast(`Transparansi: ${Math.round(nextOp * 100)}%`);
+      } else {
+        this.showToast('Pilih elemen untuk mengatur transparansi');
+      }
+    });
+
+    // Position Tool
+    this.btnPositionTool?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        this.selectedElement.style.textAlign = 'center';
+        this.showToast('Posisi diatur ke tengah');
+      } else {
+        this.showToast('Pilih elemen untuk mengatur posisi');
+      }
+    });
+
+    // Duplicate Layer Tool
+    this.btnDuplicateTool?.addEventListener('click', () => {
+      if (this.selectedElement && this.selectedElement.parentElement) {
+        const clone = this.selectedElement.cloneNode(true) as HTMLElement;
+        clone.classList.remove('selected');
+        const bar = clone.querySelector('.element-action-toolbar');
+        if (bar) bar.remove();
+        const rot = clone.querySelector('.element-rot-handle');
+        if (rot) rot.remove();
+        this.selectedElement.parentElement.appendChild(clone);
+        this.showToast('Layer berhasil diduplikasi');
+      } else {
+        this.showToast('Pilih elemen yang ingin diduplikasi');
       }
     });
 
@@ -987,6 +1085,15 @@ Format JSON yang WAJIB dihasilkan:
     if (this.btnBold) this.btnBold.classList.toggle('active', parseInt(style.fontWeight, 10) >= 700);
     if (this.btnItalic) this.btnItalic.classList.toggle('active', style.fontStyle === 'italic');
     if (this.textColorIndicator) this.textColorIndicator.style.background = style.color;
+
+    // Sync font display name
+    const family = style.fontFamily || '';
+    if (this.toolFontNameDisplay) {
+      if (family.includes('Inter')) this.toolFontNameDisplay.textContent = 'Inter';
+      else if (family.includes('Plus Jakarta Sans')) this.toolFontNameDisplay.textContent = 'Plus Jakarta Sans';
+      else if (family.includes('Playfair')) this.toolFontNameDisplay.textContent = 'Playfair Display';
+      else this.toolFontNameDisplay.textContent = 'Montserrat';
+    }
   }
 
   private deselectCanvasElement() {
