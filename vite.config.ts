@@ -13,7 +13,8 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         home: resolve(__dirname, 'home.html'),
         templates: resolve(__dirname, 'templates.html'),
-        ai: resolve(__dirname, 'wargative-ai.html')
+        ai: resolve(__dirname, 'wargative-ai.html'),
+        planner: resolve(__dirname, 'planner.html')
       }
     }
   }

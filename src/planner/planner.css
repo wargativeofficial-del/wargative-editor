@@ -1,0 +1,1437 @@
+/* ==========================================================================
+   WARGATIVE CONTENT PLANNER (Canva Planner Clone) STYLES
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+  color: #111827;
+  overflow-x: hidden;
+  height: 100vh;
+  display: flex;
+}
+
+/* ==========================================================================
+   SIDEBAR (Matching Wargative & Canva Slim Sidebar)
+   ========================================================================== */
+.sidebar {
+  width: 72px;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0 16px 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.sidebar-logo {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #7047eb 0%, #00c4cc 100%);
+  color: #ffffff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+  text-decoration: none;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(112, 71, 235, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-logo:hover {
+  transform: scale(1.05);
+}
+
+.create-btn-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.btn-create {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #7047eb 0%, #9065ff 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(112, 71, 235, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-create:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(112, 71, 235, 0.45);
+}
+
+.btn-create svg {
+  width: 22px;
+  height: 22px;
+}
+
+.create-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 52px;
+  border-radius: 8px;
+  color: #4b5563;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  gap: 3px;
+}
+
+.nav-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-item span {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.nav-item:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.nav-item.active {
+  background: #ede9fe;
+  color: #7047eb;
+}
+
+.nav-item.active svg {
+  stroke: #7047eb;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.help-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   MAIN PLANNER WORKSPACE
+   ========================================================================== */
+.planner-workspace {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.planner-container {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px 64px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header Section */
+.planner-header-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.planner-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.planner-main-heading {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.planner-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.calendar-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-today {
+  padding: 7px 16px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-today:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-month-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-month-nav:hover {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #d1d5db;
+}
+
+.btn-month-nav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.current-month-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-left: 6px;
+}
+
+.planner-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-add-schedule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7047eb 0%, #5b21b6 100%);
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(112, 71, 235, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-add-schedule:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(112, 71, 235, 0.35);
+}
+
+.btn-add-schedule svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+.filter-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-dropdown-btn:hover {
+  background: #f9fafb;
+}
+
+/* ==========================================================================
+   BANNER: Belajar dan Bermain (Collapsible matching Canva Image 1)
+   ========================================================================== */
+.learn-play-banner {
+  background: #faf5ff;
+  border: 1px solid #f3e8ff;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.learn-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.learn-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b21a8;
+}
+
+.learn-chevron {
+  transition: transform 0.2s ease;
+}
+
+.learn-play-banner.collapsed .learn-chevron {
+  transform: rotate(-90deg);
+}
+
+.learn-play-banner.collapsed .learn-cards-scroll {
+  display: none;
+}
+
+.learn-cards-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.learn-card-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e9d5ff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 240px;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+}
+
+.learn-card-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(147, 51, 234, 0.12);
+  border-color: #c084fc;
+}
+
+.learn-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.learn-card-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.learn-card-main {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
+}
+
+.learn-card-sub {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* ==========================================================================
+   CALENDAR MONTH GRID
+   ========================================================================== */
+.calendar-grid-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Day Names Header */
+.calendar-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #fafafa;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.day-header-cell {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  border-right: 1px solid #e5e7eb;
+}
+
+.day-header-cell:last-child {
+  border-right: none;
+}
+
+/* Calendar Cells Grid */
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(130px, auto);
+}
+
+.calendar-day-cell {
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  background: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.calendar-day-cell:nth-child(7n) {
+  border-right: none;
+}
+
+.calendar-day-cell.other-month {
+  background: #fbfbfb;
+}
+
+.calendar-day-cell.other-month .day-number-text {
+  color: #9ca3af;
+}
+
+.calendar-day-cell:hover {
+  background: #f8fafc;
+}
+
+.calendar-day-cell:hover .btn-cell-add-quick {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Cell Header (Day number & quick add button) */
+.cell-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.day-number-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+}
+
+.calendar-day-cell.is-today .day-number-text {
+  background: #7047eb;
+  color: #ffffff;
+  border-radius: 50%;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(112, 71, 235, 0.35);
+}
+
+.btn-cell-add-quick {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.15s ease;
+}
+
+.btn-cell-add-quick:hover {
+  background: #7047eb;
+  color: #ffffff;
+  border-color: #7047eb;
+}
+
+/* Events Container inside Day Cell */
+.cell-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+}
+
+/* Holiday Pill Badge (Matching Canva Screenshot 1) */
+.holiday-event-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f1f5f9;
+  border-left: 3px solid #0284c7;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.holiday-event-pill.special {
+  border-left-color: #7047eb;
+  background: #f5f3ff;
+  color: #5b21b6;
+}
+
+.holiday-event-pill.dark {
+  background: #1e293b;
+  color: #f8fafc;
+  border-left-color: #f59e0b;
+}
+
+/* Scheduled Post Card inside Day Cell (Interactive) */
+.scheduled-post-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.18s ease;
+  position: relative;
+}
+
+.scheduled-post-card:hover {
+  transform: translateY(-1px);
+  border-color: #7047eb;
+  box-shadow: 0 3px 8px rgba(112, 71, 235, 0.15);
+}
+
+.post-card-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #1e1b4b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.post-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-card-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.post-card-time {
+  font-size: 10px;
+  font-weight: 700;
+  color: #7047eb;
+}
+
+.post-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.post-card-channel-badge {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MODAL: TAMBAHKAN POSTINGAN KE KALENDER (Matching Images 2, 3, 4, 5)
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1080px;
+  height: 600px;
+  max-height: 90vh;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from {
+    transform: scale(0.96) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.btn-close-modal {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.15s ease;
+}
+
+.btn-close-modal:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Left Column: Project & Template Selection */
+.modal-left-column {
+  flex: 1.4;
+  border-right: 1px solid #e5e7eb;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.selector-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.selector-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.selector-section-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #7047eb;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.selector-section-link:hover {
+  text-decoration: underline;
+}
+
+/* Horizontal Scroll List of Recent Projects */
+.horizontal-projects-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px 2px;
+  scrollbar-width: thin;
+}
+
+.project-select-card {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.project-select-card:hover {
+  transform: translateY(-2px);
+}
+
+.project-select-card.selected {
+  border-color: #7047eb;
+  background: #f5f3ff;
+}
+
+.project-select-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #7047eb;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(112, 71, 235, 0.4);
+}
+
+.project-select-thumb {
+  width: 100%;
+  height: 120px;
+  border-radius: 6px;
+  background: #1e1b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.project-select-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-select-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Template Carousel matching Screenshot 2 */
+.horizontal-templates-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px 2px;
+  scrollbar-width: thin;
+}
+
+.template-select-card {
+  width: 110px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.template-select-card:hover {
+  transform: translateY(-2px);
+}
+
+.template-select-card.selected {
+  border-color: #7047eb;
+  background: #f5f3ff;
+}
+
+.template-select-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #7047eb;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-mock-thumb {
+  width: 100%;
+  height: 110px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* Right Column: "Konten baru" Form (Image 2, 3, 4, 5) */
+.modal-right-column {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  position: relative;
+  overflow-y: auto;
+}
+
+.form-view-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.form-panel-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+/* Selected Project Preview Card */
+.selected-project-summary-box {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-box-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: #1e1b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.summary-box-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.summary-box-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.summary-box-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-box-meta {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Date & Time Trigger Pill Button (Image 2) */
+.date-time-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-time-trigger-btn:hover {
+  border-color: #7047eb;
+  background: #fdfcff;
+}
+
+.date-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.date-trigger-dots {
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Platform Select Trigger Button (Image 2) */
+.channel-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.channel-trigger-btn:hover {
+  border-color: #7047eb;
+}
+
+.channel-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.channel-trigger-left.has-selected {
+  color: #111827;
+}
+
+/* Caption Textarea */
+.caption-textarea {
+  width: 100%;
+  height: 120px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1f2937;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.caption-textarea:focus {
+  border-color: #7047eb;
+  box-shadow: 0 0 0 2px rgba(112, 71, 235, 0.1);
+}
+
+.caption-textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Modal Bottom Action Buttons */
+.modal-actions-container {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-submit-schedule {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #7047eb 0%, #4f46e5 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(112, 71, 235, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-submit-schedule:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(112, 71, 235, 0.35);
+}
+
+.btn-submit-schedule:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-publish-now {
+  width: 100%;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-publish-now:hover {
+  background: #f9fafb;
+}
+
+/* ==========================================================================
+   VIEW B: "Jadwalkan" Mini Calendar & Time Picker (Image 4)
+   ========================================================================== */
+.view-back-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.view-back-header:hover {
+  color: #7047eb;
+}
+
+.mini-calendar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.mini-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mini-cal-days-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.mini-cal-day {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mini-cal-day:hover {
+  background: #f3f4f6;
+}
+
+.mini-cal-day.other-month {
+  color: #cbd5e1;
+}
+
+.mini-cal-day.selected {
+  background: #7047eb;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.time-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-input-field {
+  flex: 1;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  outline: none;
+}
+
+.time-timezone-badge {
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.btn-done-schedule {
+  width: 100%;
+  padding: 10px;
+  background: #7047eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: auto;
+}
+
+.btn-done-schedule:hover {
+  background: #5b21b6;
+}
+
+/* ==========================================================================
+   VIEW C: "Pilih Saluran" Social Channels List (Image 5)
+   ========================================================================== */
+.channel-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channel-option-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.channel-option-row:hover {
+  border-color: #7047eb;
+  background: #fcfaff;
+}
+
+.channel-icon-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.channel-name-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ==========================================================================
+   POST DETAIL MODAL (When clicking a scheduled post on calendar)
+   ========================================================================== */
+.post-detail-dialog {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 24px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.post-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.post-detail-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: #1e1b4b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  overflow: hidden;
+}
+
+.post-detail-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.post-detail-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.post-detail-channel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7047eb;
+}
+
+.post-detail-datetime {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.post-detail-caption {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.post-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-open-editor {
+  padding: 8px 16px;
+  background: #7047eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-delete-post {
+  padding: 8px 16px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   TOAST NOTIFICATION
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e1b4b;
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: toastIn 0.25s ease;
+}
+
+@keyframes toastIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
