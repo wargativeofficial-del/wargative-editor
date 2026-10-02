@@ -277,7 +277,7 @@ class WargativeContentPlanner {
   private selectedProject: ProjectItem | null = null;
   private selectedCuratedTemplate: any = null;
   private formScheduledDate: Date = new Date();
-  private formScheduledTime: string = '15:10';
+  private formScheduledTime: string = '03:10 PM';
   private formSelectedChannel: SocialChannelDef = SOCIAL_CHANNELS[0];
   private formSelectedConnection: {
     id: string;
@@ -288,6 +288,8 @@ class WargativeContentPlanner {
     avatarUrl?: string;
   } | null = null;
   private miniCalViewDate: Date = new Date();
+  private currentUserId: string | null = null;
+  private serverScheduledPosts: ScheduledPost[] = [];
   private serverConnections: Array<{
     id: string;
     platform: string;
@@ -308,10 +310,12 @@ class WargativeContentPlanner {
     this.startAutoPublishScheduler();
     this.handleUrlAuthFeedback();
     this.fetchServerConnections();
+    this.fetchScheduledPosts().then(() => this.renderCalendar());
 
-    // Re-sync server connections when user session changes
+    // Re-sync server connections and scheduled posts when user session changes
     onAuthStateChange(() => {
       this.fetchServerConnections();
+      this.fetchScheduledPosts().then(() => this.renderCalendar());
     });
   }
 
@@ -356,6 +360,13 @@ class WargativeContentPlanner {
     this.miniCalPrevBtn = document.getElementById('miniCalPrevBtn') as HTMLButtonElement;
     this.miniCalNextBtn = document.getElementById('miniCalNextBtn') as HTMLButtonElement;
     this.miniTimeInput = document.getElementById('miniTimeInput') as HTMLInputElement;
+    if (this.miniTimeInput) {
+      this.miniTimeInput.value = this.formScheduledTime;
+    }
+    const tzBadge = document.getElementById('timeTimezoneBadge');
+    if (tzBadge) {
+      tzBadge.textContent = 'WIB';
+    }
     this.btnDoneMiniCal = document.getElementById('btnDoneMiniCal') as HTMLButtonElement;
     this.btnBackFromMiniCal = document.getElementById('btnBackFromMiniCal') as HTMLElement;
 
@@ -464,11 +475,24 @@ class WargativeContentPlanner {
 
     this.btnDoneMiniCal?.addEventListener('click', () => {
       if (this.miniTimeInput?.value) {
-        this.formScheduledTime = this.miniTimeInput.value;
+        const { hours, minutes } = this.parseTimeInput(this.miniTimeInput.value);
+        this.formScheduledTime = this.formatTo12Hour(hours, minutes);
+        this.miniTimeInput.value = this.formScheduledTime;
       }
       this.updateDateTimeButtonText();
       this.showViewMainForm();
     });
+
+    const normalizeTime = () => {
+      if (this.miniTimeInput?.value) {
+        const { hours, minutes } = this.parseTimeInput(this.miniTimeInput.value);
+        this.formScheduledTime = this.formatTo12Hour(hours, minutes);
+        this.miniTimeInput.value = this.formScheduledTime;
+      }
+    };
+
+    this.miniTimeInput?.addEventListener('blur', normalizeTime);
+    this.miniTimeInput?.addEventListener('change', normalizeTime);
 
     this.miniCalPrevBtn?.addEventListener('click', () => {
       this.miniCalViewDate.setMonth(this.miniCalViewDate.getMonth() - 1);
@@ -551,7 +575,7 @@ class WargativeContentPlanner {
 
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     const holidays = getHolidays(year, month + 1);
-    const allPosts = getScheduledPosts();
+    const allPosts = this.currentUserId ? this.serverScheduledPosts : getScheduledPosts();
 
     // 1. Previous month trailing days
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
@@ -640,16 +664,17 @@ class WargativeContentPlanner {
     // 2. Scheduled Posts on this day
     const matchingPosts = allPosts.filter((p) => p.dateStr === dateStr);
     matchingPosts.forEach((post) => {
+      const displayTime = this.formatTimeString(post.timeStr);
       const postCard = document.createElement('div');
       postCard.className = 'scheduled-post-card';
-      postCard.title = `${post.timeStr} • ${post.projectTitle} (${post.channelName})`;
+      postCard.title = `${displayTime} • ${post.projectTitle} (${post.channelName})`;
 
       postCard.innerHTML = `
         <div class="post-card-thumb" style="background: ${post.thumbnailColor || '#7047eb'};">
           ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${post.projectTitle}" />` : (post.thumbnailIcon || '✨')}
         </div>
         <div class="post-card-details">
-          <span class="post-card-time">${post.timeStr} &bull; ${post.status === 'published' ? '✅ Tayang' : '⏰ Terjadwal'}</span>
+          <span class="post-card-time">${displayTime} &bull; ${post.status === 'published' ? '✅ Tayang' : '⏰ Terjadwal'}</span>
           <span class="post-card-title">${post.projectTitle}</span>
         </div>
         <span class="post-card-channel-badge">${post.channelIcon}</span>
@@ -688,6 +713,9 @@ class WargativeContentPlanner {
     this.updateSelectedPreview();
     this.updateDateTimeButtonText();
     this.updateChannelButtonText();
+    if (this.miniTimeInput) {
+      this.miniTimeInput.value = this.formScheduledTime;
+    }
 
     if (this.modalScheduleOverlay) {
       this.modalScheduleOverlay.classList.add('active');
@@ -715,6 +743,10 @@ class WargativeContentPlanner {
     this.renderMiniCalendar();
     if (this.miniTimeInput) {
       this.miniTimeInput.value = this.formScheduledTime;
+    }
+    const tzBadge = document.getElementById('timeTimezoneBadge');
+    if (tzBadge) {
+      tzBadge.textContent = 'WIB';
     }
   }
 
@@ -826,6 +858,43 @@ class WargativeContentPlanner {
     const dateNum = this.formScheduledDate.getDate();
     const monthShort = MONTH_NAMES_ID[this.formScheduledDate.getMonth()].slice(0, 3);
     this.dateTimeDisplaySpan.textContent = `${dayName}, ${dateNum} ${monthShort}, ${this.formScheduledTime}`;
+  }
+
+  private formatTo12Hour(hours: number, minutes: number): string {
+    const period = hours >= 12 ? 'PM' : 'AM';
+    let h12 = hours % 12;
+    if (h12 === 0) h12 = 12;
+    const hh = String(h12).padStart(2, '0');
+    const mm = String(minutes).padStart(2, '0');
+    return `${hh}:${mm} ${period}`;
+  }
+
+  private parseTimeInput(timeStr: string): { hours: number; minutes: number } {
+    if (!timeStr || typeof timeStr !== 'string') {
+      return { hours: 15, minutes: 10 };
+    }
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/);
+    if (!match) {
+      return { hours: 15, minutes: 10 };
+    }
+    let hours = parseInt(match[1], 10);
+    const minutes = Math.min(59, Math.max(0, parseInt(match[2], 10)));
+    const ampm = match[3]?.toUpperCase();
+
+    if (ampm === 'PM') {
+      if (hours < 12) hours += 12;
+    } else if (ampm === 'AM') {
+      if (hours === 12) hours = 0;
+    } else {
+      // 24-hour fallback
+      hours = Math.min(23, Math.max(0, hours));
+    }
+    return { hours, minutes };
+  }
+
+  private formatTimeString(timeStr: string): string {
+    const { hours, minutes } = this.parseTimeInput(timeStr);
+    return this.formatTo12Hour(hours, minutes);
   }
 
   private updateChannelButtonText() {
@@ -1095,6 +1164,61 @@ class WargativeContentPlanner {
     this.renderConnectSocialList();
     this.updateChannelButtonText();
     this.renderChannelOptionsList();
+  }
+
+  public async fetchScheduledPosts() {
+    try {
+      const user = await getCurrentUser();
+      this.currentUserId = user ? user.id : null;
+      if (!user) {
+        this.serverScheduledPosts = [];
+        return;
+      }
+
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/planner/posts', { headers });
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await res.json().catch(() => null);
+          if (data && data.success && Array.isArray(data.posts)) {
+            this.serverScheduledPosts = data.posts.map((p: any): ScheduledPost => {
+              const d = new Date(p.scheduled_at);
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              const hh = String(d.getHours()).padStart(2, '0');
+              const mm = String(d.getMinutes()).padStart(2, '0');
+
+              const channelInfo = SOCIAL_CHANNELS.find((sc) => sc.id === p.platform) || SOCIAL_CHANNELS[0];
+              const connHandle = p.social_connections?.account_handle ? `@${p.social_connections.account_handle}` : '';
+              const connName = connHandle || p.social_connections?.account_name || 'Instagram Business';
+
+              return {
+                id: p.id,
+                projectId: undefined,
+                projectTitle: p.caption ? (p.caption.length > 28 ? p.caption.slice(0, 28) + '...' : p.caption) : 'Postingan Instagram',
+                projectFormat: 'Instagram Post (4:5)',
+                thumbnailColor: '#e1306c',
+                thumbnailIcon: '📸',
+                imageUrl: p.media_url,
+                channel: p.platform,
+                channelName: connName,
+                channelIcon: channelInfo.icon,
+                channelColor: channelInfo.color,
+                dateStr: `${y}-${m}-${day}`,
+                timeStr: this.formatTo12Hour(d.getHours(), d.getMinutes()),
+                caption: p.caption || '',
+                status: p.status === 'published' ? 'published' : 'scheduled',
+                createdAt: new Date(p.created_at).getTime()
+              };
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Planner] Gagal mengambil scheduled posts dari server:', err);
+    }
   }
 
   private async startInstagramOAuth() {
@@ -1742,8 +1866,8 @@ class WargativeContentPlanner {
     }
 
     // Verify channel and account connection
-    if (isImmediate && this.formSelectedChannel.id !== 'instagram') {
-      this.showToast(`Penerbitan instan saat ini khusus untuk Instagram Business. Saluran ${this.formSelectedChannel.name} akan tersedia di tahap selanjutnya.`);
+    if (this.formSelectedChannel.id !== 'instagram') {
+      this.showToast(`Fitur saat ini khusus untuk Instagram Business. Saluran ${this.formSelectedChannel.name} akan tersedia di tahap selanjutnya.`);
       return;
     }
 
@@ -1781,7 +1905,7 @@ class WargativeContentPlanner {
       channelIcon: this.formSelectedChannel.icon,
       channelColor: this.formSelectedChannel.color,
       dateStr: dateStr,
-      timeStr: this.formScheduledTime || '15:10',
+      timeStr: this.formScheduledTime || '03:10 PM',
       caption: this.captionInput?.value.trim() || 'Desain terbaru dari Wargative Studio ✨🎨 #Wargative #CreativeDesign',
       status: isImmediate ? 'published' : 'scheduled',
       createdAt: Date.now()
@@ -1790,10 +1914,80 @@ class WargativeContentPlanner {
     if (isImmediate) {
       await this.executePublishPost(newPost, targetConn.id, targetConn.accountHandle);
     } else {
-      saveScheduledPost(newPost);
+      const { hours, minutes } = this.parseTimeInput(this.formScheduledTime);
+      const scheduledDate = new Date(
+        this.formScheduledDate.getFullYear(),
+        this.formScheduledDate.getMonth(),
+        this.formScheduledDate.getDate(),
+        hours,
+        minutes,
+        0
+      );
+
+      if (scheduledDate.getTime() <= Date.now()) {
+        this.showToast('⚠️ Waktu jadwal harus berada di masa depan!');
+        return;
+      }
+
+      await this.executeSchedulePost(targetConn.id, targetConn.accountHandle, scheduledDate);
+    }
+  }
+
+  // Schedules post into PostgreSQL Database via POST /api/planner/posts
+  private async executeSchedulePost(connectionId: string, accountHandle: string, scheduledDate: Date) {
+    const originalText = this.btnSubmitSchedule.innerHTML;
+    try {
+      this.btnSubmitSchedule.disabled = true;
+      this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Menjadwalkan...`;
+
+      this.showToast(`🎨 Mengekspor gambar desain...`);
+      const imageBlob = await this.exportProjectToJpegBlob(this.selectedProject, this.selectedCuratedTemplate);
+
+      this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah...`;
+      this.showToast(`☁️ Mengunggah gambar ke penyimpanan server...`);
+      const publicImageUrl = await this.uploadMediaToStorage(imageBlob);
+
+      this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">💾</span> Menyimpan jadwal...`;
+      this.showToast(`💾 Menyimpan jadwal postingan ke database...`);
+
+      const authHeaders = await getAuthHeader();
+      const captionText = this.captionInput?.value.trim() || 'Desain terbaru dari Wargative Studio ✨🎨 #Wargative #CreativeDesign';
+
+      const res = await fetch('/api/planner/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({
+          connectionId: connectionId,
+          caption: captionText,
+          mediaUrl: publicImageUrl,
+          scheduledAt: scheduledDate.toISOString()
+        })
+      });
+
+      const resData = await res.json().catch(() => null);
+
+      if (!res.ok || !resData?.success) {
+        const errMsg = resData?.message || resData?.error || 'Gagal menyimpan jadwal ke database.';
+        throw new Error(errMsg);
+      }
+
+      await this.fetchScheduledPosts();
       this.closeScheduleModal();
       this.renderCalendar();
-      this.showToast(`📅 Postingan "${title}" berhasil dijadwalkan ke ${this.formSelectedChannel.name} (${targetConn.accountHandle}) pada ${d} ${MONTH_NAMES_ID[this.formScheduledDate.getMonth()]} pukul ${newPost.timeStr}!`);
+
+      const d = scheduledDate.getDate();
+      const monthName = MONTH_NAMES_ID[scheduledDate.getMonth()];
+      const timeStr = this.formScheduledTime || this.formatTo12Hour(scheduledDate.getHours(), scheduledDate.getMinutes());
+      this.showToast(`📅 Postingan berhasil dijadwalkan ke Instagram (@${accountHandle}) pada ${d} ${monthName} pukul ${timeStr}! 🚀`, 6000);
+    } catch (err: any) {
+      console.error('[Planner] Schedule error:', err);
+      this.showToast(`❌ Gagal menjadwalkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
+    } finally {
+      this.btnSubmitSchedule.disabled = false;
+      this.btnSubmitSchedule.innerHTML = originalText;
     }
   }
 
@@ -1902,7 +2096,7 @@ class WargativeContentPlanner {
           <div class="post-detail-meta">
             <h3 class="post-detail-title">${post.projectTitle}</h3>
             <span class="post-detail-channel">${post.channelIcon} ${post.channelName}</span>
-            <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${post.timeStr} WIB &bull; <strong>${post.status === 'published' ? '✅ Terpublikasi' : '⏰ Terjadwal'}</strong></span>
+            <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${this.formatTimeString(post.timeStr)} WIB &bull; <strong>${post.status === 'published' ? '✅ Terpublikasi' : '⏰ Terjadwal'}</strong></span>
           </div>
         </div>
 
@@ -1940,9 +2134,33 @@ class WargativeContentPlanner {
     });
 
     const btnDelete = this.postDetailDialogOverlay.querySelector('#btnDeleteScheduledPost');
-    btnDelete?.addEventListener('click', () => {
+    btnDelete?.addEventListener('click', async () => {
+      if (this.currentUserId) {
+        try {
+          const authHeaders = await getAuthHeader();
+          const res = await fetch(`/api/planner/posts?id=${encodeURIComponent(post.id)}`, {
+            method: 'DELETE',
+            headers: authHeaders
+          });
+          const resData = await res.json().catch(() => null);
+          if (!res.ok || !resData?.success) {
+            this.showToast(`❌ Gagal menghapus: ${resData?.message || 'Gagal menghapus jadwal'}`);
+            return;
+          }
+          await this.fetchScheduledPosts();
+          this.postDetailDialogOverlay?.classList.remove('active');
+          this.renderCalendar();
+          this.showToast(`🗑️ Jadwal postingan telah dihapus`);
+          return;
+        } catch (err: any) {
+          console.error('[Planner] Gagal menghapus postingan:', err);
+          this.showToast(`❌ Gagal menghapus jadwal: ${err?.message || 'Kesalahan sistem'}`);
+          return;
+        }
+      }
+
       deleteScheduledPost(post.id);
-      this.postDetailDialogOverlay.classList.remove('active');
+      this.postDetailDialogOverlay?.classList.remove('active');
       this.renderCalendar();
       this.showToast(`Jadwal postingan telah dihapus`);
     });

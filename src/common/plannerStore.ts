@@ -52,7 +52,7 @@ export interface CalendarHoliday {
 const STORAGE_POSTS_KEY = 'wargative_scheduled_posts';
 const STORAGE_CONNECTIONS_KEY = 'wargative_social_connections';
 const STORAGE_VER_KEY = 'wargative_planner_ver';
-const CURRENT_VERSION = '1.4';
+const CURRENT_VERSION = '1.5';
 
 // Preset holidays and events matching Canva Content Planner screenshot (Image 1)
 const DEFAULT_HOLIDAYS: CalendarHoliday[] = [
@@ -82,7 +82,7 @@ const DEFAULT_POSTS: ScheduledPost[] = [
     channelIcon: '📸',
     channelColor: '#e1306c',
     dateStr: '2026-10-02',
-    timeStr: '14:40',
+    timeStr: '02:40 PM',
     caption: 'Teaser perdana Sahabat Film sudah tayang! Jangan lewatkan cerita seru dan inspiratif akhir pekan ini. ✨🎬 #SahabatFilm #Wargative',
     status: 'scheduled',
     createdAt: Date.now() - 3600000
@@ -100,7 +100,7 @@ const DEFAULT_POSTS: ScheduledPost[] = [
     channelIcon: '📘',
     channelColor: '#1877f2',
     dateStr: '2026-10-14',
-    timeStr: '19:00',
+    timeStr: '07:00 PM',
     caption: 'Malam jumat bersama Sahabat Horor. Siap untuk mengungkap misteri berikutnya? 👻🕯️',
     status: 'scheduled',
     createdAt: Date.now() - 7200000
@@ -118,7 +118,7 @@ const DEFAULT_POSTS: ScheduledPost[] = [
     channelIcon: '𝕏',
     channelColor: '#000000',
     dateStr: '2026-10-21',
-    timeStr: '10:15',
+    timeStr: '10:15 AM',
     caption: 'Tahukah kamu? Belajar 20 menit secara konsisten setiap hari lebih efektif daripada belajar semalaman sebelum ujian! 💡🧠',
     status: 'scheduled',
     createdAt: Date.now() - 10800000
