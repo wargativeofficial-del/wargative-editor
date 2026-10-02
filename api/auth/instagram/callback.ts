@@ -143,17 +143,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tokenExpiresAt = new Date(Date.now() + expiresInSec * 1000).toISOString();
 
     // 6. Fetch Instagram User Profile
-    // Use target user ID from Step 1 or 'me' on the versioned Graph API node
-    // Request valid fields: id, username, account_type, name
-    const targetNode = rawUserId || 'me';
-    let profileUrl = `https://graph.instagram.com/${apiVersion}/${targetNode}?fields=id,username,name,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
+    // Always use official /me endpoint on graph.instagram.com for Instagram Login
+    // Primary query: id, username, account_type, profile_picture_url
+    let profileUrl = `https://graph.instagram.com/${apiVersion}/me?fields=id,username,account_type,profile_picture_url&access_token=${encodeURIComponent(finalAccessToken)}`;
     let profileRes = await fetch(profileUrl);
     let profileData = await profileRes.json().catch(() => null);
 
-    // If extra fields are not permitted by app mode, retry with core fields: id,username,account_type
+    // If extended fields are not permitted, retry with core fields: id, username, account_type
     if (!profileData || profileData.error) {
       console.warn('[API /auth/instagram/callback] Profile fetch with full fields failed, retrying with core fields:', profileData?.error);
-      const coreProfileUrl = `https://graph.instagram.com/${apiVersion}/${targetNode}?fields=id,username,account_type&access_token=${encodeURIComponent(finalAccessToken)}`;
+      const coreProfileUrl = `https://graph.instagram.com/${apiVersion}/me?fields=id,username,account_type&access_token=${encodeURIComponent(finalAccessToken)}`;
       const coreRes = await fetch(coreProfileUrl);
       const coreData = await coreRes.json().catch(() => null);
       if (coreData && !coreData.error) {
