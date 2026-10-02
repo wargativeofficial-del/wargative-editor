@@ -702,14 +702,14 @@ body {
   max-width: 90%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .model-question-text {
   font-size: 15px;
   font-weight: 500;
   color: #0f172a;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Thinking Indicator Pill (Matching Screenshot 3) */
@@ -751,74 +751,188 @@ body {
   50% { transform: scale(1.2); opacity: 0.5; }
 }
 
-/* Summary Box in Chat (Matching Screenshot 5) */
-.model-summary-box {
-  background: #ffffff;
-  border: 1px solid #ede9fe;
-  border-radius: 14px;
-  padding: 14px 16px;
+/* ==========================================================================
+   CHAT POSTER PREVIEW CARD & ACTION BUTTONS (Exact Matching Image 3)
+   ========================================================================== */
+.chat-poster-card-wrapper {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.05);
+  width: 100%;
+  max-width: 360px;
+  margin-top: 6px;
 }
 
-.model-summary-text {
-  font-size: 13px;
-  line-height: 1.6;
-  color: #334155;
-}
-
-/* Attachment Card (Matching Screenshot 5) */
-.chat-attachment-card {
+.chat-poster-mockup-card {
+  width: 100%;
+  height: 440px;
+  background-color: #0c2340;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  position: relative;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 12px;
+  flex-direction: column;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.chat-attachment-card:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+.chat-poster-mockup-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.25);
 }
 
-.attachment-thumb {
+.chat-poster-header {
+  position: relative;
+  padding: 26px 22px 14px;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(12, 35, 64, 0.98) 0%, rgba(12, 35, 64, 0.88) 100%);
+}
+
+.chat-poster-headline {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.chat-poster-subheadline {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.chat-poster-poly {
+  position: absolute;
+  top: 18px;
+  right: 20px;
   width: 44px;
   height: 44px;
-  border-radius: 6px;
+  border: 1.5px solid rgba(56, 189, 248, 0.6);
+  transform: skewX(-15deg);
+}
+
+.chat-poster-curve {
+  position: relative;
+  height: 18px;
+  width: 100%;
+  z-index: 6;
+  margin-top: -8px;
+}
+
+.chat-poster-curve svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chat-poster-photo-section {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.chat-poster-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: #1e1b4b;
+  display: block;
 }
 
-.attachment-info {
-  display: flex;
-  flex-direction: column;
+.chat-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 35, 64, 0.15) 0%, rgba(12, 35, 64, 0.65) 100%);
 }
 
-.attachment-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0f172a;
+.chat-poster-badge {
+  position: absolute;
+  bottom: 14px;
+  right: 16px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
 }
 
-.attachment-sub {
-  font-size: 11px;
-  color: #64748b;
-}
-
-/* Badge Desain yang dibuat */
-.badge-design-created {
+/* Action Buttons Under Poster in Chat (Image 3) */
+.chat-poster-actions-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-chat-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.btn-chat-card-action:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
   color: #7c3aed;
-  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.btn-chat-card-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Versi terbaru Pill Button (Image 3) */
+.chat-version-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.chat-version-pill:hover {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  color: #7c3aed;
+}
+
+.chat-version-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #cbd5e1;
 }
 
 /* ==========================================================================

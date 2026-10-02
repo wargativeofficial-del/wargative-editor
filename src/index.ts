@@ -345,20 +345,24 @@ function hexToRgba(hex: string): { r: number; g: number; b: number; a: number } 
 }
 
 async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number) {
-  await cesdk.createDesignScene({ width: w, height: h, unit: 'Pixel' });
+  // Use vertical poster dimensions (1080 x 1350)
+  const targetW = aiData.width || w || 1080;
+  const targetH = aiData.height || h || 1350;
+
+  await cesdk.createDesignScene({ width: targetW, height: targetH, unit: 'Pixel' });
   const pages = cesdk.engine.scene.getPages();
   const page = pages[0];
   if (!page) return;
 
-  // 1. Background Rectangle Block
+  // 1. Background Rectangle Block (Dark Navy #0c2340)
   try {
     const bgBlock = cesdk.engine.block.create('graphic');
     cesdk.engine.block.setShape(bgBlock, cesdk.engine.block.createShape('rect'));
     const bgFill = cesdk.engine.block.createFill('color');
     cesdk.engine.block.setColor(bgFill, 'fill/color/value', hexToRgba(aiData.colors?.bg || '#0c2340'));
     cesdk.engine.block.setFill(bgBlock, bgFill);
-    cesdk.engine.block.setWidth(bgBlock, w);
-    cesdk.engine.block.setHeight(bgBlock, h);
+    cesdk.engine.block.setWidth(bgBlock, targetW);
+    cesdk.engine.block.setHeight(bgBlock, targetH);
     cesdk.engine.block.setPositionX(bgBlock, 0);
     cesdk.engine.block.setPositionY(bgBlock, 0);
     cesdk.engine.block.appendChild(page, bgBlock);
@@ -366,7 +370,10 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
     console.warn('[AI Builder] Background block failed:', e);
   }
 
-  // 2. High-res Photo Graphic Block (lower portion)
+  // 2. High-res Photo Graphic Block (lower 62% of poster)
+  const imgY = Math.round(targetH * 0.38);
+  const imgHeight = targetH - imgY;
+
   try {
     if (aiData.imageUrl) {
       const imgBlock = cesdk.engine.block.create('graphic');
@@ -374,9 +381,7 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
       const imgFill = cesdk.engine.block.createFill('image');
       cesdk.engine.block.setString(imgFill, 'fill/image/imageFileURI', aiData.imageUrl);
       cesdk.engine.block.setFill(imgBlock, imgFill);
-      const imgHeight = h * 0.65;
-      const imgY = h * 0.35;
-      cesdk.engine.block.setWidth(imgBlock, w);
+      cesdk.engine.block.setWidth(imgBlock, targetW);
       cesdk.engine.block.setHeight(imgBlock, imgHeight);
       cesdk.engine.block.setPositionX(imgBlock, 0);
       cesdk.engine.block.setPositionY(imgBlock, imgY);
@@ -386,33 +391,99 @@ async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number)
     console.warn('[AI Builder] Image block failed:', e);
   }
 
-  // 3. Headline Text Block
+  // 3. Golden Accent Divider / Wave Bar
+  try {
+    const dividerBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setShape(dividerBlock, cesdk.engine.block.createShape('rect'));
+    const dividerFill = cesdk.engine.block.createFill('color');
+    cesdk.engine.block.setColor(dividerFill, 'fill/color/value', hexToRgba(aiData.colors?.accent || '#f59e0b'));
+    cesdk.engine.block.setFill(dividerBlock, dividerFill);
+    cesdk.engine.block.setWidth(dividerBlock, targetW);
+    cesdk.engine.block.setHeight(dividerBlock, 16);
+    cesdk.engine.block.setPositionX(dividerBlock, 0);
+    cesdk.engine.block.setPositionY(dividerBlock, imgY - 8);
+    cesdk.engine.block.appendChild(page, dividerBlock);
+  } catch (e) {
+    console.warn('[AI Builder] Divider block failed:', e);
+  }
+
+  // 4. Geometric Wireframe Polygon at Top Right
+  try {
+    const polyBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setShape(polyBlock, cesdk.engine.block.createShape('rect'));
+    const polyFill = cesdk.engine.block.createFill('color');
+    cesdk.engine.block.setColor(polyFill, 'fill/color/value', { r: 0.22, g: 0.74, b: 0.97, a: 0.4 });
+    cesdk.engine.block.setFill(polyBlock, polyFill);
+    cesdk.engine.block.setWidth(polyBlock, 120);
+    cesdk.engine.block.setHeight(polyBlock, 100);
+    cesdk.engine.block.setPositionX(polyBlock, targetW - 180);
+    cesdk.engine.block.setPositionY(polyBlock, 50);
+    cesdk.engine.block.appendChild(page, polyBlock);
+  } catch (e) {
+    console.warn('[AI Builder] Poly block failed:', e);
+  }
+
+  // 5. Headline Text Block (Bold Montserrat)
   try {
     if (aiData.headline) {
       const textHeadline = cesdk.engine.block.create('text');
       cesdk.engine.block.replaceText(textHeadline, aiData.headline);
       cesdk.engine.block.setTextColor(textHeadline, { r: 1, g: 1, b: 1, a: 1 });
-      cesdk.engine.block.setWidth(textHeadline, w - 140);
+      cesdk.engine.block.setWidth(textHeadline, targetW - 240);
       cesdk.engine.block.setPositionX(textHeadline, 70);
-      cesdk.engine.block.setPositionY(textHeadline, 90);
+      cesdk.engine.block.setPositionY(textHeadline, 80);
+      try {
+        cesdk.engine.block.setFloat(textHeadline, 'text/fontSize', 68);
+      } catch (err) {}
       cesdk.engine.block.appendChild(page, textHeadline);
     }
   } catch (e) {
     console.warn('[AI Builder] Headline text failed:', e);
   }
 
-  // 4. Subheadline Text Block
+  // 6. Subheadline Text Block (Plus Jakarta Sans)
   try {
     if (aiData.subheadline) {
       const textSub = cesdk.engine.block.create('text');
       cesdk.engine.block.replaceText(textSub, aiData.subheadline);
       cesdk.engine.block.setTextColor(textSub, { r: 0.8, g: 0.85, b: 0.95, a: 1 });
-      cesdk.engine.block.setWidth(textSub, w - 140);
+      cesdk.engine.block.setWidth(textSub, targetW - 180);
       cesdk.engine.block.setPositionX(textSub, 70);
-      cesdk.engine.block.setPositionY(textSub, 250);
+      cesdk.engine.block.setPositionY(textSub, 290);
+      try {
+        cesdk.engine.block.setFloat(textSub, 'text/fontSize', 32);
+      } catch (err) {}
       cesdk.engine.block.appendChild(page, textSub);
     }
   } catch (e) {
     console.warn('[AI Builder] Subheadline text failed:', e);
+  }
+
+  // 7. Footer Badge Pill & Text ("SEKOLAH UNGGULAN")
+  try {
+    const badgeTextStr = aiData.badge || 'SEKOLAH UNGGULAN';
+    const badgeBg = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setShape(badgeBg, cesdk.engine.block.createShape('rect'));
+    const badgeFill = cesdk.engine.block.createFill('color');
+    cesdk.engine.block.setColor(badgeFill, 'fill/color/value', hexToRgba(aiData.colors?.accent || '#f59e0b'));
+    cesdk.engine.block.setFill(badgeBg, badgeFill);
+    cesdk.engine.block.setWidth(badgeBg, 290);
+    cesdk.engine.block.setHeight(badgeBg, 56);
+    cesdk.engine.block.setPositionX(badgeBg, targetW - 350);
+    cesdk.engine.block.setPositionY(badgeBg, targetH - 96);
+    cesdk.engine.block.appendChild(page, badgeBg);
+
+    const textBadge = cesdk.engine.block.create('text');
+    cesdk.engine.block.replaceText(textBadge, badgeTextStr);
+    cesdk.engine.block.setTextColor(textBadge, { r: 1, g: 1, b: 1, a: 1 });
+    cesdk.engine.block.setWidth(textBadge, 270);
+    cesdk.engine.block.setPositionX(textBadge, targetW - 340);
+    cesdk.engine.block.setPositionY(textBadge, targetH - 86);
+    try {
+      cesdk.engine.block.setFloat(textBadge, 'text/fontSize', 22);
+    } catch (err) {}
+    cesdk.engine.block.appendChild(page, textBadge);
+  } catch (e) {
+    console.warn('[AI Builder] Badge failed:', e);
   }
 }

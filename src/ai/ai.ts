@@ -108,6 +108,16 @@ class WargativeAIChatManager {
   private btnUndo!: HTMLButtonElement;
   private btnRedo!: HTMLButtonElement;
 
+  // Canvas History (Ctrl+Z, Ctrl+Y) and Clipboard (Ctrl+C, Ctrl+X, Ctrl+V)
+  private canvasHistory: string[] = [];
+  private canvasRedoHistory: string[] = [];
+  private clipboardHtml: string | null = null;
+  private isDraggingElement: boolean = false;
+  private dragStartX: number = 0;
+  private dragStartY: number = 0;
+  private elemStartLeft: number = 0;
+  private elemStartTop: number = 0;
+
   constructor() {
     this.initDOM();
     this.loadSessions();
@@ -315,12 +325,8 @@ class WargativeAIChatManager {
 
     this.renderMessageStream(session);
 
-    // If session has active design, open split workspace and render it
-    if (session.currentDesign) {
-      this.openSplitCanvas(session.currentDesign);
-    } else {
-      this.closeSplitCanvas();
-    }
+    // Keep split canvas closed by default so user sees the chat view (Image 3)
+    this.closeSplitCanvas();
   }
 
   private renderMessageStream(session: ChatSession) {
@@ -364,36 +370,89 @@ class WargativeAIChatManager {
           qText.textContent = msg.text;
           wrapper.appendChild(qText);
         } else if (msg.type === 'summary_card' && msg.designData) {
-          const summaryBox = document.createElement('div');
-          summaryBox.className = 'model-summary-box';
-
           const textEl = document.createElement('div');
-          textEl.className = 'model-summary-text';
+          textEl.className = 'model-question-text';
           textEl.textContent = msg.text;
-          summaryBox.appendChild(textEl);
+          wrapper.appendChild(textEl);
 
-          // Attachment Card (Matching Screenshot 5)
-          const attachCard = document.createElement('div');
-          attachCard.className = 'chat-attachment-card';
-          attachCard.innerHTML = `
-            <img src="${msg.designData.imageUrl}" class="attachment-thumb" alt="Preview" />
-            <div class="attachment-info">
-              <span class="attachment-title">Mengunggah media sosial...</span>
-              <span class="attachment-sub">Baru saja</span>
+          // Chat Poster Preview Card (Matching User Image 3)
+          const cardWrapper = document.createElement('div');
+          cardWrapper.className = 'chat-poster-card-wrapper';
+
+          const posterMockup = document.createElement('div');
+          posterMockup.className = 'chat-poster-mockup-card';
+          posterMockup.title = 'Klik untuk melihat & mengedit live di Canvas';
+          posterMockup.innerHTML = `
+            <div class="chat-poster-header" style="background: linear-gradient(180deg, ${msg.designData.colors.bg} 0%, rgba(12,35,64,0.9) 100%);">
+              <div class="chat-poster-poly"></div>
+              <h2 class="chat-poster-headline">${msg.designData.headline}</h2>
+              <p class="chat-poster-subheadline">${msg.designData.subheadline}</p>
+            </div>
+            <div class="chat-poster-curve">
+              <svg viewBox="0 0 500 40" preserveAspectRatio="none">
+                <path d="M 0,20 Q 250,45 500,10 L 500,40 L 0,40 Z" fill="${msg.designData.colors.accent}" opacity="0.95"></path>
+              </svg>
+            </div>
+            <div class="chat-poster-photo-section">
+              <img src="${msg.designData.imageUrl}" class="chat-poster-img" alt="Poster Image" />
+              <div class="chat-poster-overlay"></div>
+              ${msg.designData.badge ? `<div class="chat-poster-badge" style="background: ${msg.designData.colors.accent};">${msg.designData.badge}</div>` : ''}
             </div>
           `;
-          attachCard.addEventListener('click', () => {
+          posterMockup.addEventListener('click', () => {
             if (msg.designData) this.openSplitCanvas(msg.designData);
           });
-          summaryBox.appendChild(attachCard);
+          cardWrapper.appendChild(posterMockup);
 
-          // Status badge
-          const badgeEl = document.createElement('div');
-          badgeEl.className = 'badge-design-created';
-          badgeEl.innerHTML = `<span>✨</span><span><strong>Desain yang dibuat:</strong> Desain Anda telah ditambahkan.</span>`;
-          summaryBox.appendChild(badgeEl);
+          // Action Buttons: [Edit] and [Membuka] (Image 3)
+          const actionsRow = document.createElement('div');
+          actionsRow.className = 'chat-poster-actions-row';
 
-          wrapper.appendChild(summaryBox);
+          const btnEdit = document.createElement('button');
+          btnEdit.className = 'btn-chat-card-action';
+          btnEdit.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            <span>Edit</span>
+          `;
+          btnEdit.title = 'Edit desain di Live Canvas';
+          btnEdit.addEventListener('click', () => {
+            if (msg.designData) this.openSplitCanvas(msg.designData);
+          });
+          actionsRow.appendChild(btnEdit);
+
+          const btnOpen = document.createElement('button');
+          btnOpen.className = 'btn-chat-card-action';
+          btnOpen.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            <span>Membuka</span>
+          `;
+          btnOpen.title = 'Buka langsung di Wargative Editor';
+          btnOpen.addEventListener('click', () => {
+            if (msg.designData) this.openInWargativeEditor(msg.designData);
+          });
+          actionsRow.appendChild(btnOpen);
+
+          cardWrapper.appendChild(actionsRow);
+
+          // Versi terbaru Pill Button (Image 3)
+          const versionPill = document.createElement('button');
+          versionPill.className = 'chat-version-pill';
+          versionPill.innerHTML = `
+            <img src="${msg.designData.imageUrl}" class="chat-version-thumb" alt="Thumb" />
+            <span>Versi terbaru</span>
+            <span>↗</span>
+          `;
+          versionPill.title = 'Buka versi terbaru di Live Canvas';
+          versionPill.addEventListener('click', () => {
+            if (msg.designData) this.openSplitCanvas(msg.designData);
+          });
+          cardWrapper.appendChild(versionPill);
+
+          wrapper.appendChild(cardWrapper);
         } else {
           const generalText = document.createElement('div');
           generalText.className = 'model-question-text';
@@ -743,7 +802,7 @@ Format JSON yang WAJIB dihasilkan:
       <div class="poster-container" style="background-color: ${data.colors.bg};">
         <!-- Top Section: Header & Typography -->
         <div class="poster-header-section" style="background: linear-gradient(180deg, ${data.colors.bg} 0%, rgba(12,35,64,0.92) 100%);">
-          <div class="poster-geometric-poly"></div>
+          <div class="poster-geometric-poly editable-element" id="livePolyEl" title="Bentuk Geometris (Bisa digeser)"></div>
           <h1 class="poster-headline editable-element" id="liveHeadlineEl" contenteditable="true" spellcheck="false" style="color: ${data.colors.text}; font-family: 'Montserrat', sans-serif;">${data.headline}</h1>
           <p class="poster-subheadline editable-element" id="liveSubheadlineEl" contenteditable="true" spellcheck="false" style="color: ${data.colors.subtext}; font-family: 'Plus Jakarta Sans', sans-serif;">${data.subheadline}</p>
         </div>
@@ -751,7 +810,7 @@ Format JSON yang WAJIB dihasilkan:
         <!-- Curve Divider Wave (Yellow/Gold Accent) -->
         <div class="poster-curve-divider">
           <svg viewBox="0 0 500 40" preserveAspectRatio="none">
-            <path d="M 0,20 Q 250,45 500,10 L 500,40 L 0,40 Z" fill="${data.colors.accent}" opacity="0.9"></path>
+            <path d="M 0,20 Q 250,45 500,10 L 500,40 L 0,40 Z" fill="${data.colors.accent}" opacity="0.95"></path>
           </svg>
         </div>
 
@@ -759,42 +818,15 @@ Format JSON yang WAJIB dihasilkan:
         <div class="poster-photo-section">
           <img src="${data.imageUrl}" class="poster-photo-img" alt="${data.topic}" />
           <div class="poster-photo-overlay"></div>
-          ${data.badge ? `<div class="poster-footer-badge" style="background: ${data.colors.accent};">${data.badge}</div>` : ''}
+          ${data.badge ? `<div class="poster-footer-badge editable-element" id="liveBadgeEl" contenteditable="true" spellcheck="false" style="background: ${data.colors.accent};">${data.badge}</div>` : ''}
         </div>
       </div>
     `;
 
-    // Hook Headline Click & Edit
+    this.rebindLiveCanvasElements();
+    this.pushCanvasState();
+
     const headlineEl = document.getElementById('liveHeadlineEl');
-    if (headlineEl) {
-      headlineEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.selectCanvasElement(headlineEl, data);
-      });
-      headlineEl.addEventListener('input', () => {
-        data.headline = headlineEl.innerText.trim();
-        const session = this.getActiveSession();
-        session.currentDesign = data;
-        this.saveSessions();
-      });
-    }
-
-    // Hook Subheadline Click & Edit
-    const subheadlineEl = document.getElementById('liveSubheadlineEl');
-    if (subheadlineEl) {
-      subheadlineEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.selectCanvasElement(subheadlineEl, data);
-      });
-      subheadlineEl.addEventListener('input', () => {
-        data.subheadline = subheadlineEl.innerText.trim();
-        const session = this.getActiveSession();
-        session.currentDesign = data;
-        this.saveSessions();
-      });
-    }
-
-    // Auto-select headline initially to match Screenshot 1!
     if (headlineEl) {
       setTimeout(() => this.selectCanvasElement(headlineEl, data), 200);
     }
@@ -811,16 +843,197 @@ Format JSON yang WAJIB dihasilkan:
   }
 
   /**
+   * Rebinds all editable elements inside live canvas
+   */
+  private rebindLiveCanvasElements() {
+    if (!this.liveDesignPage) return;
+    const session = this.getActiveSession();
+    const data = session.currentDesign;
+    if (!data) return;
+
+    const editableElements = this.liveDesignPage.querySelectorAll('.editable-element');
+    editableElements.forEach((node) => {
+      const el = node as HTMLElement;
+      el.onclick = (e) => {
+        e.stopPropagation();
+        this.selectCanvasElement(el, data);
+      };
+      el.oninput = () => {
+        if (el.id === 'liveHeadlineEl') data.headline = el.innerText.trim();
+        else if (el.id === 'liveSubheadlineEl') data.subheadline = el.innerText.trim();
+        else if (el.id === 'liveBadgeEl') data.badge = el.innerText.trim();
+        this.saveSessions();
+        this.pushCanvasState();
+      };
+      this.initElementDragging(el);
+    });
+  }
+
+  /**
+   * Element Drag & Drop repositioning
+   */
+  private initElementDragging(el: HTMLElement) {
+    el.addEventListener('mousedown', (e) => {
+      if ((e.target as HTMLElement).closest('.element-action-toolbar')) return;
+      if (document.activeElement === el && (e.target as HTMLElement).isContentEditable) return;
+
+      this.isDraggingElement = true;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+
+      const computed = window.getComputedStyle(el);
+      this.elemStartLeft = parseFloat(computed.left) || 0;
+      this.elemStartTop = parseFloat(computed.top) || 0;
+
+      const onMouseMove = (me: MouseEvent) => {
+        if (!this.isDraggingElement) return;
+        const dx = me.clientX - this.dragStartX;
+        const dy = me.clientY - this.dragStartY;
+        el.style.position = 'relative';
+        el.style.left = `${this.elemStartLeft + dx}px`;
+        el.style.top = `${this.elemStartTop + dy}px`;
+      };
+
+      const onMouseUp = () => {
+        if (this.isDraggingElement) {
+          this.isDraggingElement = false;
+          this.pushCanvasState();
+        }
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  /**
+   * Canvas Undo / Redo & Clipboard Support
+   */
+  public pushCanvasState() {
+    if (!this.liveDesignPage) return;
+    const clone = this.liveDesignPage.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('.element-action-toolbar, .element-rot-handle').forEach((el) => el.remove());
+    clone.querySelectorAll('.selected').forEach((el) => el.classList.remove('selected'));
+    const html = clone.innerHTML;
+
+    if (this.canvasHistory.length === 0 || this.canvasHistory[this.canvasHistory.length - 1] !== html) {
+      this.canvasHistory.push(html);
+      if (this.canvasHistory.length > 50) this.canvasHistory.shift();
+      this.canvasRedoHistory = [];
+    }
+  }
+
+  public undoCanvasState() {
+    if (this.canvasHistory.length > 1) {
+      const current = this.canvasHistory.pop()!;
+      this.canvasRedoHistory.push(current);
+      const prev = this.canvasHistory[this.canvasHistory.length - 1];
+      if (prev && this.liveDesignPage) {
+        this.deselectCanvasElement();
+        this.liveDesignPage.innerHTML = prev;
+        this.rebindLiveCanvasElements();
+        this.showToast('Urungkan aksi (Ctrl+Z)');
+      }
+    } else {
+      this.showToast('Tidak ada lagi riwayat untuk diurungkan');
+    }
+  }
+
+  public redoCanvasState() {
+    if (this.canvasRedoHistory.length > 0) {
+      const next = this.canvasRedoHistory.pop()!;
+      this.canvasHistory.push(next);
+      if (this.liveDesignPage) {
+        this.deselectCanvasElement();
+        this.liveDesignPage.innerHTML = next;
+        this.rebindLiveCanvasElements();
+        this.showToast('Ulangi aksi (Ctrl+Y)');
+      }
+    } else {
+      this.showToast('Tidak ada lagi riwayat untuk diulangi');
+    }
+  }
+
+  public copyCanvasElement() {
+    if (this.selectedElement) {
+      const clone = this.selectedElement.cloneNode(true) as HTMLElement;
+      clone.classList.remove('selected');
+      clone.querySelectorAll('.element-action-toolbar, .element-rot-handle').forEach((el) => el.remove());
+      this.clipboardHtml = clone.outerHTML;
+      this.showToast('Elemen disalin (Ctrl+C)');
+    }
+  }
+
+  public cutCanvasElement() {
+    if (this.selectedElement) {
+      this.copyCanvasElement();
+      this.pushCanvasState();
+      this.selectedElement.remove();
+      this.selectedElement = null;
+      this.pushCanvasState();
+      this.showToast('Elemen dipotong (Ctrl+X)');
+    }
+  }
+
+  public pasteCanvasElement() {
+    if (this.clipboardHtml && this.liveDesignPage) {
+      this.pushCanvasState();
+      const temp = document.createElement('div');
+      temp.innerHTML = this.clipboardHtml;
+      const el = temp.firstElementChild as HTMLElement;
+      if (el) {
+        el.id = `elem_${Date.now()}`;
+        el.classList.remove('selected');
+        el.contentEditable = 'true';
+        el.spellcheck = false;
+
+        const curTop = parseFloat(el.style.top) || 20;
+        const curLeft = parseFloat(el.style.left) || 20;
+        el.style.position = 'relative';
+        el.style.top = `${curTop + 24}px`;
+        el.style.left = `${curLeft + 24}px`;
+
+        const targetContainer = this.liveDesignPage.querySelector('.poster-header-section') || this.liveDesignPage;
+        targetContainer.appendChild(el);
+
+        this.rebindLiveCanvasElements();
+        const session = this.getActiveSession();
+        if (session.currentDesign) {
+          this.selectCanvasElement(el, session.currentDesign);
+        }
+        this.pushCanvasState();
+        this.showToast('Elemen ditempel (Ctrl+V)');
+      }
+    }
+  }
+
+  public deleteSelectedCanvasElement() {
+    if (this.selectedElement) {
+      this.pushCanvasState();
+      this.selectedElement.remove();
+      this.selectedElement = null;
+      this.pushCanvasState();
+      this.showToast('Elemen dihapus');
+    }
+  }
+
+  /**
    * Opens the AI-generated design directly into CE.SDK Wargative Studio (index.html)
    */
   private openInWargativeEditor(data: DesignData) {
     const liveHeadline = document.getElementById('liveHeadlineEl')?.innerText.trim() || data.headline;
     const liveSubheadline = document.getElementById('liveSubheadlineEl')?.innerText.trim() || data.subheadline;
+    const liveBadge = document.getElementById('liveBadgeEl')?.innerText.trim() || data.badge || 'SEKOLAH UNGGULAN';
 
     const latestData: DesignData = {
       ...data,
       headline: liveHeadline,
-      subheadline: liveSubheadline
+      subheadline: liveSubheadline,
+      badge: liveBadge,
+      width: 1080,
+      height: 1350
     };
 
     const session = this.getActiveSession();
@@ -841,9 +1054,9 @@ Format JSON yang WAJIB dihasilkan:
     const projectItem: ProjectItem = {
       id: projectId,
       title: latestData.headline,
-      format: `${data.width} × ${data.height} px`,
-      width: data.width,
-      height: data.height,
+      format: `${latestData.width} × ${latestData.height} px`,
+      width: latestData.width,
+      height: latestData.height,
       updatedAt: Date.now(),
       thumbnailColor: 'linear-gradient(135deg, #0c2340 0%, #1d4ed8 100%)',
       thumbnailIcon: '✨',
@@ -857,7 +1070,7 @@ Format JSON yang WAJIB dihasilkan:
 
     setTimeout(() => {
       window.location.href = `./index.html?id=${projectId}&source=ai_gen`;
-    }, 350);
+    }, 250);
   }
 
   private bindCanvasEditorEvents() {
@@ -1045,13 +1258,11 @@ Format JSON yang WAJIB dihasilkan:
 
     // Undo / Redo
     this.btnUndo?.addEventListener('click', () => {
-      document.execCommand('undo');
-      this.showToast('Urungkan aksi');
+      this.undoCanvasState();
     });
 
     this.btnRedo?.addEventListener('click', () => {
-      document.execCommand('redo');
-      this.showToast('Ulangi aksi');
+      this.redoCanvasState();
     });
   }
 
@@ -1066,11 +1277,34 @@ Format JSON yang WAJIB dihasilkan:
     const bar = document.createElement('div');
     bar.className = 'element-action-toolbar';
     bar.innerHTML = `
-      <button class="element-action-btn" title="Kunci">🔒</button>
-      <button class="element-action-btn" title="Duplikasi">📄</button>
-      <button class="element-action-btn" title="Hapus">🗑️</button>
+      <button class="element-action-btn btn-action-lock" title="Kunci / Buka Kunci">🔒</button>
+      <button class="element-action-btn btn-action-dup" title="Duplikasi (Ctrl+C, Ctrl+V)">📄</button>
+      <button class="element-action-btn btn-action-del" title="Hapus (Delete)">🗑️</button>
       <button class="element-action-btn" title="Lainnya">•••</button>
     `;
+
+    // Hook action buttons
+    const btnLock = bar.querySelector('.btn-action-lock') as HTMLElement;
+    btnLock?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isLocked = el.contentEditable === 'false';
+      el.contentEditable = isLocked ? 'true' : 'false';
+      this.showToast(isLocked ? 'Elemen dibuka kuncinya' : 'Elemen dikunci');
+    });
+
+    const btnDup = bar.querySelector('.btn-action-dup') as HTMLElement;
+    btnDup?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.copyCanvasElement();
+      this.pasteCanvasElement();
+    });
+
+    const btnDel = bar.querySelector('.btn-action-del') as HTMLElement;
+    btnDel?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.deleteSelectedCanvasElement();
+    });
+
     el.appendChild(bar);
 
     // Add rotation handle
@@ -1310,6 +1544,98 @@ Format JSON yang WAJIB dihasilkan:
     // Speech-to-Text Microphone (Voice)
     this.btnVoiceMic?.addEventListener('click', () => {
       this.toggleVoiceInput();
+    });
+
+    // Canvas Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+X, Ctrl+V, Delete, Arrow Keys)
+    document.addEventListener('keydown', (e) => {
+      if (this.canvasSidePanel && this.canvasSidePanel.style.display !== 'none') {
+        const isCtrl = e.ctrlKey || e.metaKey;
+
+        // Ctrl+Z (Undo)
+        if (isCtrl && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) this.redoCanvasState();
+          else this.undoCanvasState();
+          return;
+        }
+
+        // Ctrl+Y (Redo)
+        if (isCtrl && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          this.redoCanvasState();
+          return;
+        }
+
+        // Ctrl+C (Copy)
+        if (isCtrl && e.key.toLowerCase() === 'c') {
+          if (this.selectedElement && (!window.getSelection() || window.getSelection()?.toString().length === 0)) {
+            e.preventDefault();
+            this.copyCanvasElement();
+            return;
+          }
+        }
+
+        // Ctrl+X (Cut)
+        if (isCtrl && e.key.toLowerCase() === 'x') {
+          if (this.selectedElement && (!window.getSelection() || window.getSelection()?.toString().length === 0)) {
+            e.preventDefault();
+            this.cutCanvasElement();
+            return;
+          }
+        }
+
+        // Ctrl+V (Paste)
+        if (isCtrl && e.key.toLowerCase() === 'v') {
+          if (this.clipboardHtml && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            this.pasteCanvasElement();
+            return;
+          }
+        }
+
+        // Delete / Backspace (Delete element)
+        if ((e.key === 'Delete' || e.key === 'Backspace') && this.selectedElement) {
+          const isTyping = document.activeElement === this.selectedElement;
+          if (!isTyping) {
+            e.preventDefault();
+            this.deleteSelectedCanvasElement();
+            return;
+          }
+        }
+
+        // Arrow Keys (Move 1px or 10px with Shift)
+        if (this.selectedElement && e.key.startsWith('Arrow')) {
+          const isTyping = document.activeElement === this.selectedElement;
+          if (!isTyping) {
+            e.preventDefault();
+            const step = e.shiftKey ? 10 : 1;
+            const curTop = parseFloat(this.selectedElement.style.top) || 0;
+            const curLeft = parseFloat(this.selectedElement.style.left) || 0;
+            this.selectedElement.style.position = 'relative';
+
+            if (e.key === 'ArrowUp') this.selectedElement.style.top = `${curTop - step}px`;
+            if (e.key === 'ArrowDown') this.selectedElement.style.top = `${curTop + step}px`;
+            if (e.key === 'ArrowLeft') this.selectedElement.style.left = `${curLeft - step}px`;
+            if (e.key === 'ArrowRight') this.selectedElement.style.left = `${curLeft + step}px`;
+            return;
+          }
+        }
+      }
+    });
+
+    // AI Studio Navigation Item in Sidebar (always resets to home / session 1)
+    const aiNavItems = document.querySelectorAll('.nav-item.ai-item');
+    aiNavItems.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.closeSplitCanvas();
+        if (this.sessions && this.sessions.length > 0) {
+          this.activeSessionId = this.sessions[0].id;
+        }
+        this.renderTabs();
+        this.renderActiveView();
+        this.showToast('Kembali ke beranda AI Studio');
+      });
     });
   }
 
