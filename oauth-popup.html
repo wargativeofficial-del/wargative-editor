@@ -361,15 +361,16 @@
             fetch(`https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${accessToken}`)
               .then((r) => r.json())
               .then((userData) => {
-                const fbName = userData.name || 'Wargative User';
-                const fbId = userData.id || '1077172458260514';
+                const fbName = userData.name || 'Bayu Pamungkas';
+                const fbId = userData.id || '1074079788556384';
                 let handle = '@' + fbName.toLowerCase().replace(/\s+/g, '');
 
-                // Fetch linked Instagram Business Accounts
-                fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username,name}&access_token=${accessToken}`)
+                // Fetch linked Instagram Business Accounts & Facebook Pages
+                fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name}&access_token=${accessToken}`)
                   .then((r) => r.json())
                   .then((accData) => {
                     let accountId = fbId;
+                    let targetToken = accessToken;
                     if (accData.data && accData.data.length > 0) {
                       const page = accData.data[0];
                       if (channel === 'instagram' && page.instagram_business_account) {
@@ -378,6 +379,9 @@
                       } else if (channel === 'facebook') {
                         handle = page.name;
                         accountId = page.id;
+                        if (page.access_token) {
+                          targetToken = page.access_token;
+                        }
                       }
                     }
 
@@ -386,7 +390,7 @@
                         type: 'WARGATIVE_SOCIAL_AUTH_SUCCESS',
                         channelId: channel,
                         handle: handle,
-                        token: accessToken,
+                        token: targetToken,
                         accountId: accountId,
                         name: channel === 'instagram' ? 'Instagram Business' : 'Halaman Facebook',
                         timestamp: Date.now()
