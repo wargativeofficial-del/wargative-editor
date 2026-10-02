@@ -1351,3 +1351,255 @@ body {
     border-bottom: 1px solid #e2e8f0;
   }
 }
+
+/* ==========================================================================
+   CANVA CONTEXTUAL FORMATTING TOOLBAR (Screenshot 1)
+   ========================================================================== */
+.canva-context-toolbar {
+  height: 48px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  z-index: 12;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.toolbar-left-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.tool-divider {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+  margin: 0 4px;
+}
+
+.tool-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+
+.tool-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tool-icon-btn.active {
+  background: #ede9fe;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.tool-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tool-font-select {
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
+.tool-size-control {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+  height: 30px;
+  background: #ffffff;
+}
+
+.tool-size-input {
+  width: 44px;
+  border: none;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  outline: none;
+}
+
+.btn-size-step {
+  width: 22px;
+  height: 100%;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-size-step:hover {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.color-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.color-letter {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.color-indicator {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  border: 1px solid #94a3b8;
+}
+
+.tool-sub-pill {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tool-sub-pill:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   CANVAS ELEMENT SELECTION & BOUNDING BOX (Screenshot 1)
+   ========================================================================== */
+.editable-element {
+  position: relative;
+  cursor: text;
+  transition: outline 0.15s ease;
+  border-radius: 4px;
+}
+
+.editable-element:hover {
+  outline: 1.5px dashed rgba(124, 58, 237, 0.4);
+}
+
+.editable-element.selected {
+  outline: 2px solid #7c3aed !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Corner handles */
+.editable-element.selected::before,
+.editable-element.selected::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 2px solid #7c3aed;
+  border-radius: 2px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.editable-element.selected::before {
+  top: -4px;
+  left: -4px;
+}
+
+.editable-element.selected::after {
+  top: -4px;
+  right: -4px;
+}
+
+/* Floating Action Toolbar above Selection (Screenshot 1: Rotate, Lock, Duplicate, Trash) */
+.element-action-toolbar {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px;
+  z-index: 50;
+  pointer-events: auto;
+}
+
+.element-action-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.element-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Rotation Handle at Bottom */
+.element-rot-handle {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #64748b;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  z-index: 20;
+}
+

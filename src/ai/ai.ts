@@ -84,10 +84,28 @@ class WargativeAIChatManager {
   private zoomSlider!: HTMLInputElement;
   private zoomPercentage!: HTMLElement;
 
+  // Canva Formatting Contextual Toolbar Elements
+  private selectedElement: HTMLElement | null = null;
+  private canvaContextToolbar!: HTMLElement;
+  private toolFontSelect!: HTMLSelectElement;
+  private toolSizeInput!: HTMLInputElement;
+  private btnSizeMinus!: HTMLButtonElement;
+  private btnSizePlus!: HTMLButtonElement;
+  private nativeColorPicker!: HTMLInputElement;
+  private textColorIndicator!: HTMLElement;
+  private btnBold!: HTMLButtonElement;
+  private btnItalic!: HTMLButtonElement;
+  private btnUnderline!: HTMLButtonElement;
+  private btnUppercase!: HTMLButtonElement;
+  private btnAlign!: HTMLButtonElement;
+  private btnUndo!: HTMLButtonElement;
+  private btnRedo!: HTMLButtonElement;
+
   constructor() {
     this.initDOM();
     this.loadSessions();
     this.bindEvents();
+    this.bindCanvasEditorEvents();
     this.renderTabs();
     this.renderActiveView();
   }
@@ -125,6 +143,22 @@ class WargativeAIChatManager {
     this.canvasPageWrapper = document.getElementById('canvasPageWrapper') as HTMLElement;
     this.zoomSlider = document.getElementById('zoomSlider') as HTMLInputElement;
     this.zoomPercentage = document.getElementById('zoomPercentage') as HTMLElement;
+
+    // Canva Contextual Toolbar
+    this.canvaContextToolbar = document.getElementById('canvaContextToolbar') as HTMLElement;
+    this.toolFontSelect = document.getElementById('toolFontSelect') as HTMLSelectElement;
+    this.toolSizeInput = document.getElementById('toolSizeInput') as HTMLInputElement;
+    this.btnSizeMinus = document.getElementById('btnSizeMinus') as HTMLButtonElement;
+    this.btnSizePlus = document.getElementById('btnSizePlus') as HTMLButtonElement;
+    this.nativeColorPicker = document.getElementById('nativeColorPicker') as HTMLInputElement;
+    this.textColorIndicator = document.getElementById('textColorIndicator') as HTMLElement;
+    this.btnBold = document.getElementById('btnBold') as HTMLButtonElement;
+    this.btnItalic = document.getElementById('btnItalic') as HTMLButtonElement;
+    this.btnUnderline = document.getElementById('btnUnderline') as HTMLButtonElement;
+    this.btnUppercase = document.getElementById('btnUppercase') as HTMLButtonElement;
+    this.btnAlign = document.getElementById('btnAlign') as HTMLButtonElement;
+    this.btnUndo = document.getElementById('btnUndo') as HTMLButtonElement;
+    this.btnRedo = document.getElementById('btnRedo') as HTMLButtonElement;
   }
 
   private loadSessions() {
@@ -685,7 +719,7 @@ Format JSON yang WAJIB dihasilkan:
   }
 
   /**
-   * Renders the complete live editable poster matching Screenshot 5
+   * Renders the complete live editable poster matching Screenshot 1 & 5
    */
   private renderLivePoster(data: DesignData) {
     if (!this.liveDesignPage) return;
@@ -696,8 +730,8 @@ Format JSON yang WAJIB dihasilkan:
         <!-- Top Section: Header & Typography -->
         <div class="poster-header-section" style="background: linear-gradient(180deg, ${data.colors.bg} 0%, rgba(12,35,64,0.92) 100%);">
           <div class="poster-geometric-poly"></div>
-          <h1 class="poster-headline" style="color: ${data.colors.text};">${data.headline}</h1>
-          <p class="poster-subheadline" style="color: ${data.colors.subtext};">${data.subheadline}</p>
+          <h1 class="poster-headline editable-element" id="liveHeadlineEl" contenteditable="true" spellcheck="false" style="color: ${data.colors.text}; font-family: 'Montserrat', sans-serif;">${data.headline}</h1>
+          <p class="poster-subheadline editable-element" id="liveSubheadlineEl" contenteditable="true" spellcheck="false" style="color: ${data.colors.subtext}; font-family: 'Plus Jakarta Sans', sans-serif;">${data.subheadline}</p>
         </div>
 
         <!-- Curve Divider Wave (Yellow/Gold Accent) -->
@@ -716,6 +750,41 @@ Format JSON yang WAJIB dihasilkan:
       </div>
     `;
 
+    // Hook Headline Click & Edit
+    const headlineEl = document.getElementById('liveHeadlineEl');
+    if (headlineEl) {
+      headlineEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.selectCanvasElement(headlineEl, data);
+      });
+      headlineEl.addEventListener('input', () => {
+        data.headline = headlineEl.innerText.trim();
+        const session = this.getActiveSession();
+        session.currentDesign = data;
+        this.saveSessions();
+      });
+    }
+
+    // Hook Subheadline Click & Edit
+    const subheadlineEl = document.getElementById('liveSubheadlineEl');
+    if (subheadlineEl) {
+      subheadlineEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.selectCanvasElement(subheadlineEl, data);
+      });
+      subheadlineEl.addEventListener('input', () => {
+        data.subheadline = subheadlineEl.innerText.trim();
+        const session = this.getActiveSession();
+        session.currentDesign = data;
+        this.saveSessions();
+      });
+    }
+
+    // Auto-select headline initially to match Screenshot 1!
+    if (headlineEl) {
+      setTimeout(() => this.selectCanvasElement(headlineEl, data), 200);
+    }
+
     // Hook Edit Button to open in Wargative Studio
     if (this.btnCanvasEdit) {
       this.btnCanvasEdit.onclick = () => this.openInWargativeEditor(data);
@@ -731,10 +800,33 @@ Format JSON yang WAJIB dihasilkan:
    * Opens the AI-generated design directly into CE.SDK Wargative Studio (index.html)
    */
   private openInWargativeEditor(data: DesignData) {
-    const projectId = `proj-ai-${Date.now()}`;
+    const liveHeadline = document.getElementById('liveHeadlineEl')?.innerText.trim() || data.headline;
+    const liveSubheadline = document.getElementById('liveSubheadlineEl')?.innerText.trim() || data.subheadline;
+
+    const latestData: DesignData = {
+      ...data,
+      headline: liveHeadline,
+      subheadline: liveSubheadline
+    };
+
+    const session = this.getActiveSession();
+    session.currentDesign = latestData;
+    this.saveSessions();
+
+    const projectId = `proj_ai_${Date.now()}`;
+
+    // Store transfer data for CE.SDK scene builder in src/index.ts
+    localStorage.setItem(
+      'wargative_ai_transfer_design',
+      JSON.stringify({
+        ...latestData,
+        projectId
+      })
+    );
+
     const projectItem: ProjectItem = {
       id: projectId,
-      title: data.headline,
+      title: latestData.headline,
       format: `${data.width} × ${data.height} px`,
       width: data.width,
       height: data.height,
@@ -750,8 +842,162 @@ Format JSON yang WAJIB dihasilkan:
     this.showToast('Membuka desain di Wargative Editor...');
 
     setTimeout(() => {
-      window.location.href = `./index.html?projectId=${projectId}&title=${encodeURIComponent(data.headline)}&width=${data.width}&height=${data.height}`;
-    }, 400);
+      window.location.href = `./index.html?id=${projectId}&source=ai_gen`;
+    }, 350);
+  }
+
+  private bindCanvasEditorEvents() {
+    // Deselect when clicking outside editable elements
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.editable-element') && !target.closest('.canva-context-toolbar')) {
+        this.deselectCanvasElement();
+      }
+    });
+
+    // Font Select
+    this.toolFontSelect?.addEventListener('change', () => {
+      if (this.selectedElement) {
+        this.selectedElement.style.fontFamily = this.toolFontSelect.value;
+      }
+    });
+
+    // Font Size Plus/Minus
+    this.btnSizePlus?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const cur = parseFloat(window.getComputedStyle(this.selectedElement).fontSize) || 32;
+        const next = Math.round(cur + 2);
+        this.selectedElement.style.fontSize = `${next}px`;
+        if (this.toolSizeInput) this.toolSizeInput.value = `${next}`;
+      }
+    });
+
+    this.btnSizeMinus?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const cur = parseFloat(window.getComputedStyle(this.selectedElement).fontSize) || 32;
+        const next = Math.max(12, Math.round(cur - 2));
+        this.selectedElement.style.fontSize = `${next}px`;
+        if (this.toolSizeInput) this.toolSizeInput.value = `${next}`;
+      }
+    });
+
+    this.toolSizeInput?.addEventListener('change', () => {
+      if (this.selectedElement) {
+        const val = parseFloat(this.toolSizeInput.value) || 32;
+        this.selectedElement.style.fontSize = `${val}px`;
+      }
+    });
+
+    // Text Color
+    this.nativeColorPicker?.addEventListener('input', () => {
+      if (this.selectedElement) {
+        const col = this.nativeColorPicker.value;
+        this.selectedElement.style.color = col;
+        if (this.textColorIndicator) this.textColorIndicator.style.background = col;
+      }
+    });
+
+    // Bold Toggle
+    this.btnBold?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const isBold = parseInt(window.getComputedStyle(this.selectedElement).fontWeight, 10) >= 700;
+        this.selectedElement.style.fontWeight = isBold ? '400' : '900';
+        this.btnBold.classList.toggle('active', !isBold);
+      }
+    });
+
+    // Italic Toggle
+    this.btnItalic?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const isItalic = window.getComputedStyle(this.selectedElement).fontStyle === 'italic';
+        this.selectedElement.style.fontStyle = isItalic ? 'normal' : 'italic';
+        this.btnItalic.classList.toggle('active', !isItalic);
+      }
+    });
+
+    // Underline Toggle
+    this.btnUnderline?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const isUnderline = window.getComputedStyle(this.selectedElement).textDecoration.includes('underline');
+        this.selectedElement.style.textDecoration = isUnderline ? 'none' : 'underline';
+        this.btnUnderline.classList.toggle('active', !isUnderline);
+      }
+    });
+
+    // Uppercase Toggle
+    this.btnUppercase?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const isUpper = window.getComputedStyle(this.selectedElement).textTransform === 'uppercase';
+        this.selectedElement.style.textTransform = isUpper ? 'none' : 'uppercase';
+        this.btnUppercase.classList.toggle('active', !isUpper);
+      }
+    });
+
+    // Alignment Toggle
+    this.btnAlign?.addEventListener('click', () => {
+      if (this.selectedElement) {
+        const cur = window.getComputedStyle(this.selectedElement).textAlign;
+        let next = 'left';
+        if (cur === 'left') next = 'center';
+        else if (cur === 'center') next = 'right';
+        else next = 'left';
+        this.selectedElement.style.textAlign = next;
+      }
+    });
+
+    // Undo / Redo
+    this.btnUndo?.addEventListener('click', () => {
+      document.execCommand('undo');
+      this.showToast('Urungkan aksi');
+    });
+
+    this.btnRedo?.addEventListener('click', () => {
+      document.execCommand('redo');
+      this.showToast('Ulangi aksi');
+    });
+  }
+
+  private selectCanvasElement(el: HTMLElement, data: DesignData) {
+    if (this.selectedElement === el) return;
+    this.deselectCanvasElement();
+
+    this.selectedElement = el;
+    el.classList.add('selected');
+
+    // Add floating action bar (Screenshot 1: Rotate, Lock, Duplicate, Delete)
+    const bar = document.createElement('div');
+    bar.className = 'element-action-toolbar';
+    bar.innerHTML = `
+      <button class="element-action-btn" title="Kunci">🔒</button>
+      <button class="element-action-btn" title="Duplikasi">📄</button>
+      <button class="element-action-btn" title="Hapus">🗑️</button>
+      <button class="element-action-btn" title="Lainnya">•••</button>
+    `;
+    el.appendChild(bar);
+
+    // Add rotation handle
+    const rot = document.createElement('div');
+    rot.className = 'element-rot-handle';
+    rot.innerHTML = '🔄';
+    el.appendChild(rot);
+
+    // Sync toolbar state
+    const style = window.getComputedStyle(el);
+    if (this.toolSizeInput) this.toolSizeInput.value = `${Math.round(parseFloat(style.fontSize))}`;
+    if (this.btnBold) this.btnBold.classList.toggle('active', parseInt(style.fontWeight, 10) >= 700);
+    if (this.btnItalic) this.btnItalic.classList.toggle('active', style.fontStyle === 'italic');
+    if (this.textColorIndicator) this.textColorIndicator.style.background = style.color;
+  }
+
+  private deselectCanvasElement() {
+    if (this.selectedElement) {
+      this.selectedElement.classList.remove('selected');
+      const bar = this.selectedElement.querySelector('.element-action-toolbar');
+      if (bar) bar.remove();
+      const rot = this.selectedElement.querySelector('.element-rot-handle');
+      if (rot) rot.remove();
+      this.selectedElement = null;
+    }
   }
 
   /**

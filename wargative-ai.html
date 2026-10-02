@@ -329,6 +329,59 @@
             </div>
           </div>
 
+          <!-- Floating Canva Formatting Toolbar (Screenshot 1) -->
+          <div class="canva-context-toolbar" id="canvaContextToolbar">
+            <div class="toolbar-left-group">
+              <button class="tool-icon-btn" id="btnUndo" title="Urungkan (Undo)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4" /></svg>
+              </button>
+              <button class="tool-icon-btn" id="btnRedo" title="Ulangi (Redo)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2m0 0l4-4m-4 4l-4-4" /></svg>
+              </button>
+
+              <div class="tool-divider"></div>
+
+              <!-- Font Select -->
+              <select class="tool-font-select" id="toolFontSelect" title="Font">
+                <option value="'Inter', sans-serif">Inter</option>
+                <option value="'Montserrat', sans-serif">Montserrat</option>
+                <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans</option>
+                <option value="'Playfair Display', serif">Playfair Display</option>
+              </select>
+
+              <!-- Font Size -->
+              <div class="tool-size-control">
+                <button class="btn-size-step" id="btnSizeMinus">-</button>
+                <input type="text" class="tool-size-input" id="toolSizeInput" value="78.8" />
+                <button class="btn-size-step" id="btnSizePlus">+</button>
+              </div>
+
+              <div class="tool-divider"></div>
+
+              <!-- Text Color -->
+              <label class="tool-icon-btn color-btn" title="Ubah Warna Teks">
+                <span class="color-letter">A</span>
+                <span class="color-indicator" id="textColorIndicator" style="background: #ffffff;"></span>
+                <input type="color" id="nativeColorPicker" style="display: none;" value="#ffffff" />
+              </label>
+
+              <!-- Bold / Italic / Underline / Case / Align -->
+              <button class="tool-icon-btn active" id="btnBold" title="Tebal (Bold)"><strong>B</strong></button>
+              <button class="tool-icon-btn" id="btnItalic" title="Miring (Italic)"><em>I</em></button>
+              <button class="tool-icon-btn" id="btnUnderline" title="Garis Bawah (Underline)"><u>U</u></button>
+              <button class="tool-icon-btn" id="btnUppercase" title="Kapitalisasi (aA)">aA</button>
+              <button class="tool-icon-btn" id="btnAlign" title="Perataan Teks">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h14" /></svg>
+              </button>
+
+              <div class="tool-divider"></div>
+
+              <button class="tool-sub-pill" id="btnEffects">Effects</button>
+              <button class="tool-sub-pill" id="btnAnimate">Animate</button>
+              <button class="tool-sub-pill" id="btnPosition">Position</button>
+            </div>
+          </div>
+
           <!-- Canvas Viewport with Center White Page -->
           <div class="canvas-viewport" id="canvasViewport">
             <div class="canvas-page-wrapper" id="canvasPageWrapper">

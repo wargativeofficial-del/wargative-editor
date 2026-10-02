@@ -38,17 +38,30 @@ CreativeEditorSDK.create('#cesdk_container', config)
     // Dynamic Scene Loading & Project Identity Handling
     // ============================================================================
     const urlParams = new URLSearchParams(window.location.search);
-    let projectId = urlParams.get('id');
+    let projectId = urlParams.get('id') || urlParams.get('projectId');
     const template = urlParams.get('template');
     const templateUri = urlParams.get('templateUri');
-    const widthParam = urlParams.get('w');
-    const heightParam = urlParams.get('h');
-    const nameParam = urlParams.get('name');
+    const widthParam = urlParams.get('w') || urlParams.get('width');
+    const heightParam = urlParams.get('h') || urlParams.get('height');
+    const nameParam = urlParams.get('name') || urlParams.get('title');
     const autoDownload = urlParams.get('autodownload');
+    const isAiGen = urlParams.get('source') === 'ai_gen';
+
+    // Check for AI Transfer Design from Wargative AI Magic Studio
+    let aiTransferData: any = null;
+    const aiTransferRaw = localStorage.getItem('wargative_ai_transfer_design');
+    if (aiTransferRaw) {
+      try {
+        const parsed = JSON.parse(aiTransferRaw);
+        if (parsed.projectId === projectId || isAiGen) {
+          aiTransferData = parsed;
+        }
+      } catch (e) {}
+    }
 
     // If no project ID is provided in the URL, create a new persistent project ID
     if (!projectId) {
-      projectId = 'proj_' + Date.now();
+      projectId = aiTransferData?.projectId || 'proj_' + Date.now();
       urlParams.set('id', projectId);
       window.history.replaceState(
         null,
@@ -59,9 +72,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
     // Resolve project meta
     let projectMeta = getProject(projectId);
-    const title = nameParam || projectMeta?.title || 'Untitled Design';
-    const width = widthParam ? parseFloat(widthParam) : (projectMeta?.width || 1080);
-    const height = heightParam ? parseFloat(heightParam) : (projectMeta?.height || 1080);
+    const title = nameParam || aiTransferData?.headline || projectMeta?.title || 'Untitled Design';
+    const width = widthParam ? parseFloat(widthParam) : (aiTransferData?.width || projectMeta?.width || 1080);
+    const height = heightParam ? parseFloat(heightParam) : (aiTransferData?.height || projectMeta?.height || 1080);
     const format = `${width} x ${height} px`;
 
     if (!projectMeta) {
@@ -72,10 +85,10 @@ CreativeEditorSDK.create('#cesdk_container', config)
         width,
         height,
         updatedAt: Date.now(),
-        thumbnailColor: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
-        thumbnailIcon: '🎨',
-        badgeText: 'Design',
-        badgeBg: '#6366f1'
+        thumbnailColor: aiTransferData ? 'linear-gradient(135deg, #0c2340 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+        thumbnailIcon: aiTransferData ? '✨' : '🎨',
+        badgeText: aiTransferData ? 'AI Design' : 'Design',
+        badgeBg: aiTransferData ? '#7c3aed' : '#6366f1'
       };
       saveProjectMeta(projectMeta);
     }
@@ -95,7 +108,19 @@ CreativeEditorSDK.create('#cesdk_container', config)
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
       } catch (err) {
         console.error('[Wargative AutoSave] Failed to restore saved scene:', err);
-        // Fallback
+        await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+      }
+    } else if (aiTransferData) {
+      // BUILD NATIVE AI DESIGN SCENE (Canva Style Layered Elements)
+      console.log('[Wargative] Building native AI design scene:', aiTransferData);
+      try {
+        await buildAiDesignScene(cesdk, aiTransferData, width, height);
+        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, initialSceneStr);
+      } catch (e) {
+        console.error('[Wargative] Error building AI scene:', e);
         await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
       }
@@ -306,3 +331,88 @@ CreativeEditorSDK.create('#cesdk_container', config)
     // eslint-disable-next-line no-console
     console.error('Failed to initialize CE.SDK:', error);
   });
+
+function hexToRgba(hex: string): { r: number; g: number; b: number; a: number } {
+  let c = (hex || '#0c2340').replace('#', '');
+  if (c.length === 3) c = c.split('').map((x) => x + x).join('');
+  const num = parseInt(c, 16);
+  return {
+    r: ((num >> 16) & 255) / 255,
+    g: ((num >> 8) & 255) / 255,
+    b: (num & 255) / 255,
+    a: 1.0
+  };
+}
+
+async function buildAiDesignScene(cesdk: any, aiData: any, w: number, h: number) {
+  await cesdk.createDesignScene({ width: w, height: h, unit: 'Pixel' });
+  const pages = cesdk.engine.scene.getPages();
+  const page = pages[0];
+  if (!page) return;
+
+  // 1. Background Rectangle Block
+  try {
+    const bgBlock = cesdk.engine.block.create('graphic');
+    cesdk.engine.block.setShape(bgBlock, cesdk.engine.block.createShape('rect'));
+    const bgFill = cesdk.engine.block.createFill('color');
+    cesdk.engine.block.setColor(bgFill, 'fill/color/value', hexToRgba(aiData.colors?.bg || '#0c2340'));
+    cesdk.engine.block.setFill(bgBlock, bgFill);
+    cesdk.engine.block.setWidth(bgBlock, w);
+    cesdk.engine.block.setHeight(bgBlock, h);
+    cesdk.engine.block.setPositionX(bgBlock, 0);
+    cesdk.engine.block.setPositionY(bgBlock, 0);
+    cesdk.engine.block.appendChild(page, bgBlock);
+  } catch (e) {
+    console.warn('[AI Builder] Background block failed:', e);
+  }
+
+  // 2. High-res Photo Graphic Block (lower portion)
+  try {
+    if (aiData.imageUrl) {
+      const imgBlock = cesdk.engine.block.create('graphic');
+      cesdk.engine.block.setShape(imgBlock, cesdk.engine.block.createShape('rect'));
+      const imgFill = cesdk.engine.block.createFill('image');
+      cesdk.engine.block.setString(imgFill, 'fill/image/imageFileURI', aiData.imageUrl);
+      cesdk.engine.block.setFill(imgBlock, imgFill);
+      const imgHeight = h * 0.65;
+      const imgY = h * 0.35;
+      cesdk.engine.block.setWidth(imgBlock, w);
+      cesdk.engine.block.setHeight(imgBlock, imgHeight);
+      cesdk.engine.block.setPositionX(imgBlock, 0);
+      cesdk.engine.block.setPositionY(imgBlock, imgY);
+      cesdk.engine.block.appendChild(page, imgBlock);
+    }
+  } catch (e) {
+    console.warn('[AI Builder] Image block failed:', e);
+  }
+
+  // 3. Headline Text Block
+  try {
+    if (aiData.headline) {
+      const textHeadline = cesdk.engine.block.create('text');
+      cesdk.engine.block.replaceText(textHeadline, aiData.headline);
+      cesdk.engine.block.setTextColor(textHeadline, { r: 1, g: 1, b: 1, a: 1 });
+      cesdk.engine.block.setWidth(textHeadline, w - 140);
+      cesdk.engine.block.setPositionX(textHeadline, 70);
+      cesdk.engine.block.setPositionY(textHeadline, 90);
+      cesdk.engine.block.appendChild(page, textHeadline);
+    }
+  } catch (e) {
+    console.warn('[AI Builder] Headline text failed:', e);
+  }
+
+  // 4. Subheadline Text Block
+  try {
+    if (aiData.subheadline) {
+      const textSub = cesdk.engine.block.create('text');
+      cesdk.engine.block.replaceText(textSub, aiData.subheadline);
+      cesdk.engine.block.setTextColor(textSub, { r: 0.8, g: 0.85, b: 0.95, a: 1 });
+      cesdk.engine.block.setWidth(textSub, w - 140);
+      cesdk.engine.block.setPositionX(textSub, 70);
+      cesdk.engine.block.setPositionY(textSub, 250);
+      cesdk.engine.block.appendChild(page, textSub);
+    }
+  } catch (e) {
+    console.warn('[AI Builder] Subheadline text failed:', e);
+  }
+}
