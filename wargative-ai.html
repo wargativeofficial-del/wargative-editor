@@ -9,7 +9,7 @@
     />
     <meta name="author" content="Bayu Pamungkas" />
     <meta name="description" content="Wargative AI Magic Studio - Powered by Gemini 3.8 Flash" />
-    <title>Wargative AI Magic Studio - Powered by Gemini 3.8 Flash</title>
+    <title>Wargative AI - Powered by Gemini 3.8 Flash</title>
     <link rel="stylesheet" href="./src/ai/ai.css" />
   </head>
   <body>
@@ -78,234 +78,212 @@
     </aside>
 
     <!-- ====================================================================
-         MAIN SCROLLABLE CONTENT
+         MAIN VIEWPORT
          ==================================================================== -->
     <main class="main-wrapper">
-      <!-- Top Header -->
-      <div class="top-header-bar">
-        <div class="gemini-model-badge">
-          <span class="gemini-pulse-dot"></span>
-          <span>Google Gemini 3.8 Flash Connected</span>
-        </div>
-        <a href="./home.html" style="font-size: 13px; font-weight: 700; color: #7047eb; text-decoration: none;">
-          &larr; Back to Home
-        </a>
-      </div>
-
-      <!-- Hero Banner -->
-      <section class="ai-hero-banner">
-        <h1 class="ai-hero-title">
-          <span>✨</span> Wargative AI Magic Studio
-        </h1>
-        <p class="ai-hero-subtitle">
-          Supercharge alur kerja kreatif Anda. Buat konsep visual, copywriting viral, palet warna presisi, dan konsultasi desain langsung dengan Gemini 3.8 Flash.
-        </p>
-
-        <!-- Tool Mode Tabs -->
-        <div class="ai-mode-tabs">
-          <button class="ai-tab-btn active" data-tab="concept">
-            <span>🪄</span> Magic Design
-          </button>
-          <button class="ai-tab-btn" data-tab="copywriter">
-            <span>✍️</span> Magic Write & Copy
-          </button>
-          <button class="ai-tab-btn" data-tab="palette">
-            <span>🎨</span> Smart Palette
-          </button>
-          <button class="ai-tab-btn" data-tab="copilot">
-            <span>💬</span> AI Co-Pilot Chat
-          </button>
-        </div>
-      </section>
-
-      <!-- Content Area -->
-      <div class="ai-content-wrapper">
-        <!-- ================================================================
-             TAB 1: MAGIC DESIGN (Concept to Canvas)
-             ================================================================ -->
-        <div class="ai-tool-panel" id="panel-concept">
-          <div class="ai-tool-card">
-            <div class="tool-header-row">
-              <div>
-                <h2 class="tool-title"><span>🪄</span> Magic Design (Concept to Canvas)</h2>
-                <p class="tool-desc">Tuliskan ide atau tema desain Anda, Gemini 3.8 Flash akan merancang struktur teks, hierarki visual, palet warna, dan langsung menyiapkannya ke Studio.</p>
-              </div>
-            </div>
-
-            <div class="ai-form-group">
-              <label class="ai-label">Deskripsi Ide Desain</label>
-              <textarea
-                id="designPromptInput"
-                class="ai-textarea"
-                placeholder="Contoh: Poster promo grand opening coffee shop estetik diskon 50%, tema warm vintage matcha..."
-              ></textarea>
-            </div>
-
-            <!-- Suggestion Chips -->
-            <div class="suggestion-chips-row">
-              <span class="chip-label">Inspirasi:</span>
-              <button class="prompt-chip" data-target="design" data-prompt="Poster promo grand opening coffee shop diskon 50% tema warm minimalist">☕ Grand Opening Coffee</button>
-              <button class="prompt-chip" data-target="design" data-prompt="Instagram feed launching produk skincare glowing alami dengan pastel tones">✨ Launching Skincare</button>
-              <button class="prompt-chip" data-target="design" data-prompt="Banner webinar AI & Desain Grafis Masa Depan untuk profesional muda">🚀 Webinar Tech AI</button>
-              <button class="prompt-chip" data-target="design" data-prompt="Poster festival musik jazz senja outdoor nuansa twilight purple">🎷 Festival Musik Jazz</button>
-            </div>
-
-            <button class="btn-ai-generate" id="btnGenerateDesign">
-              <span>🪄</span> Rancang Konsep Desain
-            </button>
-
-            <!-- Output Box -->
-            <div id="designResultBox" style="display: none;"></div>
+      <!-- Top Chat Tabs Bar -->
+      <header class="top-chat-bar">
+        <div class="chat-tabs-nav-wrapper">
+          <div class="chat-tabs-list" id="chatTabsList">
+            <!-- Dynamic Chat Tabs inserted by ai.ts -->
           </div>
+
+          <!-- New Chat (+) Button -->
+          <button class="btn-new-chat" id="btnNewChat" title="Buat Obrolan Baru (New Chat)">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
         </div>
 
-        <!-- ================================================================
-             TAB 2: MAGIC WRITE & COPYWRITER
-             ================================================================ -->
-        <div class="ai-tool-panel" id="panel-copywriter" style="display: none;">
-          <div class="ai-tool-card">
-            <div class="tool-header-row">
-              <div>
-                <h2 class="tool-title"><span>✍️</span> Magic Write & Copywriter</h2>
-                <p class="tool-desc">Buat caption Instagram viral, headline iklan yang mengonversi tinggi, dan tagline memikat dalam hitungan detik.</p>
-              </div>
-            </div>
-
-            <div class="ai-form-group">
-              <label class="ai-label">Topik, Produk, atau Pesan</label>
-              <textarea
-                id="copyPromptInput"
-                class="ai-textarea"
-                placeholder="Contoh: Jasa desain grafis profesional wargative studio dengan revisi kilat dan lisensi komersial..."
-              ></textarea>
-            </div>
-
-            <div class="ai-select-row">
-              <div class="ai-select-box">
-                <label class="ai-label">Format Konten</label>
-                <select id="copyTypeSelect" class="ai-select">
-                  <option value="instagram" selected>📱 Instagram Caption + Hashtags</option>
-                  <option value="headline">🎯 5 Headline Iklan Catchy</option>
-                  <option value="slogan">💎 6 Tagline / Slogan Unik</option>
-                  <option value="promo">🔥 Naskah Promo / Flash Sale</option>
-                  <option value="product">📦 Deskripsi Produk (USP & Benefit)</option>
-                  <option value="script">🎬 Script Video Reels 30 Detik</option>
-                </select>
-              </div>
-
-              <div class="ai-select-box">
-                <label class="ai-label">Gaya Bahasa (Tone)</label>
-                <select id="copyToneSelect" class="ai-select">
-                  <option value="catchy" selected>⚡ Trendy & Viral (Kekinian)</option>
-                  <option value="professional">💼 Profesional & Kredibel</option>
-                  <option value="persuasive">🔥 Persuasif & Memicu Urgensi</option>
-                  <option value="friendly">🤝 Akrab & Hangat</option>
-                  <option value="luxury">👑 Mewah & Elegan</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Chips -->
-            <div class="suggestion-chips-row">
-              <span class="chip-label">Coba:</span>
-              <button class="prompt-chip" data-target="copy" data-prompt="Brand clothing lokal streetwear bahan cotton combed premium edisi terbatas">👕 Streetwear Brand</button>
-              <button class="prompt-chip" data-target="copy" data-prompt="Jasa kursus UI/UX design online mentor praktisi startup unicorn">💻 UI/UX Bootcamp</button>
-              <button class="prompt-chip" data-target="copy" data-prompt="Menu minuman matcha latte autentik Jepang dengan oat milk sehat">🍵 Authentic Matcha</button>
-            </div>
-
-            <button class="btn-ai-generate" id="btnGenerateCopy">
-              <span>✍️</span> Buat Copywriting
-            </button>
-
-            <!-- Output Box -->
-            <div id="copyResultBox" style="display: none;"></div>
+        <div class="top-bar-right">
+          <div class="gemini-status-pill">
+            <span class="status-dot"></span>
+            <span>Gemini 3.8 Flash</span>
           </div>
+
+          <a href="./home.html" class="back-home-link" title="Kembali ke Beranda Wargative">
+            <span>🏠</span> Beranda
+          </a>
         </div>
+      </header>
 
-        <!-- ================================================================
-             TAB 3: SMART PALETTE GENERATOR
-             ================================================================ -->
-        <div class="ai-tool-panel" id="panel-palette" style="display: none;">
-          <div class="ai-tool-card">
-            <div class="tool-header-row">
-              <div>
-                <h2 class="tool-title"><span>🎨</span> Smart Palette Generator</h2>
-                <p class="tool-desc">Dapatkan 5 perpaduan warna harmonis lengkap dengan kode HEX dan CSS Gradient siap pakai.</p>
-              </div>
-            </div>
+      <!-- Central Chat & Canvas Container -->
+      <div class="ai-canvas-area" id="aiCanvasArea">
+        <!-- WELCOME SCREEN (Shown when active chat is empty) -->
+        <section class="ai-welcome-view" id="aiWelcomeView">
+          <div class="welcome-center-box">
+            <h1 class="welcome-heading">
+              Apa yang akan kita rancang hari ini, Wargative?
+            </h1>
 
-            <div class="ai-form-group">
-              <label class="ai-label">Tema / Vibe Palet</label>
-              <input
-                type="text"
-                id="paletteThemeInput"
-                class="ai-textarea"
-                style="min-height: 48px; padding: 12px 18px;"
-                placeholder="Contoh: Cyberpunk Neon Tokyo, Matcha Cafe Aesthetic, Sunset Golden Hour, Luxury Minimalist..."
-              />
-            </div>
+            <!-- Suggestion Carousel -->
+            <div class="cards-carousel-wrapper">
+              <div class="cards-carousel-track" id="cardsCarouselTrack">
+                <!-- Card 1: Social Media -->
+                <div class="suggestion-card card-social" data-prompt="Buat postingan media sosial yang menarik dan kreatif untuk Instagram dengan visual concept, headline catchy, dan copywriting lengkap.">
+                  <div class="card-text-title">Buat postingan media sosial.</div>
+                  <div class="card-visual-mockup mockup-social">
+                    <div class="mini-ig-card">
+                      <div class="mini-ig-header">
+                        <div class="mini-ig-avatar"></div>
+                        <div class="mini-ig-user">wargative.design</div>
+                      </div>
+                      <div class="mini-ig-image">
+                        <span class="mini-ig-badge">✨ NEW</span>
+                        <div class="mini-ig-person"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-            <!-- Chips -->
-            <div class="suggestion-chips-row">
-              <span class="chip-label">Tema Populer:</span>
-              <button class="prompt-chip" data-target="palette" data-prompt="Sunset Golden Hour Warm Orange Violet">🌅 Sunset Golden Hour</button>
-              <button class="prompt-chip" data-target="palette" data-prompt="Cyberpunk Neon Electric Blue & Magenta">⚡ Cyberpunk Neon</button>
-              <button class="prompt-chip" data-target="palette" data-prompt="Matcha & Oatmilk Soft Earthy Pastel">🍵 Matcha & Oatmilk</button>
-              <button class="prompt-chip" data-target="palette" data-prompt="Luxury Obsidian Black with Champagne Gold">👑 Luxury Black & Gold</button>
-              <button class="prompt-chip" data-target="palette" data-prompt="Clean Corporate Navy Blue & Mint Emerald">💼 Modern Corporate</button>
-            </div>
+                <!-- Card 2: Presentation Deck -->
+                <div class="suggestion-card card-presentation" data-prompt="Rancanglah sebuah dek presentasi profesional tentang pertumbuhan bisnis, strategi marketing, dan rencana eksekusi tahun ini.">
+                  <div class="card-text-title">Rancanglah sebuah dek presentasi profesional.</div>
+                  <div class="card-visual-mockup mockup-presentation">
+                    <div class="mini-deck-slide">
+                      <div class="mini-deck-bold">GROW<br/>YOUR<br/>BUSINESS</div>
+                      <div class="mini-deck-accent"></div>
+                    </div>
+                  </div>
+                </div>
 
-            <button class="btn-ai-generate" id="btnGeneratePalette">
-              <span>🎨</span> Racik Palet Warna
-            </button>
+                <!-- Card 3: Learning / Document Plan -->
+                <div class="suggestion-card card-document" data-prompt="Bantu saya membuat rencana pembelajaran atau dokumen kerja yang terstruktur, rapi, dan mudah dipahami.">
+                  <div class="card-text-title">Bantu saya membuat rencana pembelajaran.</div>
+                  <div class="card-visual-mockup mockup-document">
+                    <div class="mini-doc-sheet">
+                      <div class="mini-doc-line title"></div>
+                      <div class="mini-doc-grid">
+                        <div class="mini-doc-box"></div>
+                        <div class="mini-doc-box"></div>
+                        <div class="mini-doc-box"></div>
+                      </div>
+                      <div class="mini-doc-line"></div>
+                    </div>
+                  </div>
+                </div>
 
-            <!-- Output Box -->
-            <div id="paletteResultBox" style="display: none;"></div>
-          </div>
-        </div>
+                <!-- Card 4: Promotional Banner -->
+                <div class="suggestion-card card-promo" data-prompt="Buatkan konsep banner promosi flash sale diskon hingga 70% dengan tema warna energik dan copywriting persuasif.">
+                  <div class="card-text-title">Buatkan konsep banner promosi flash sale.</div>
+                  <div class="card-visual-mockup mockup-promo">
+                    <div class="mini-promo-banner">
+                      <div class="mini-promo-tag">FLASH SALE</div>
+                      <div class="mini-promo-discount">70% OFF</div>
+                    </div>
+                  </div>
+                </div>
 
-        <!-- ================================================================
-             TAB 4: AI CO-PILOT CHAT
-             ================================================================ -->
-        <div class="ai-tool-panel" id="panel-copilot" style="display: none;">
-          <div class="ai-tool-card">
-            <div class="tool-header-row">
-              <div>
-                <h2 class="tool-title"><span>💬</span> Wargative AI Co-Pilot (Live Brainstorming)</h2>
-                <p class="tool-desc">Konsultasikan ide desain, font pairing, strategi visual media sosial, dan review layout langsung dengan AI.</p>
-              </div>
-            </div>
-
-            <div class="chat-container">
-              <div class="chat-messages-box" id="chatMessagesBox">
-                <div class="chat-bubble model">
-                  <span>Halo! Saya <strong>Wargative AI Co-Pilot</strong> yang ditenagai Gemini 3.8 Flash. Apa ide desain atau strategi konten yang ingin Anda diskusikan hari ini? ✨</span>
+                <!-- Card 5: Color Palette & Brand -->
+                <div class="suggestion-card card-brand" data-prompt="Buat racikan 5 palet warna brand modern eksklusif dengan gradient dan panduan penggunaannya.">
+                  <div class="card-text-title">Racik palet warna brand modern eksklusif.</div>
+                  <div class="card-visual-mockup mockup-brand">
+                    <div class="mini-swatch-row">
+                      <span style="background: #4c1d95;"></span>
+                      <span style="background: #7047eb;"></span>
+                      <span style="background: #06b6d4;"></span>
+                      <span style="background: #f43f5e;"></span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="chat-input-bar">
-                <input
-                  type="text"
-                  id="chatInputField"
-                  class="chat-input-field"
-                  placeholder="Ketik pertanyaan atau minta saran desain (misal: 'Rekomendasi font pairing untuk brand mewah')..."
-                />
-                <button class="btn-send-chat" id="btnSendChat">Kirim</button>
+              <!-- Carousel Right Arrow -->
+              <button class="carousel-arrow-btn" id="btnCarouselNext" title="Lihat saran lainnya">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- CHAT CONVERSATION STREAM (Shown when active chat has messages) -->
+        <section class="ai-chat-stream-view" id="aiChatStreamView" style="display: none;">
+          <div class="chat-messages-container" id="chatMessagesContainer">
+            <!-- Messages rendered dynamically -->
+          </div>
+        </section>
+      </div>
+
+      <!-- BOTTOM FLOATING PROMPT INPUT BOX (Canva Magic Studio Style) -->
+      <footer class="bottom-prompt-wrapper">
+        <div class="prompt-box-container">
+          <!-- Textarea -->
+          <textarea
+            id="chatPromptInput"
+            class="chat-prompt-textarea"
+            rows="1"
+            placeholder="Tugas apa yang harus kita selesaikan selanjutnya?"
+          ></textarea>
+
+          <!-- Action bar inside bottom of input box -->
+          <div class="prompt-actions-bar">
+            <div class="prompt-left-tools">
+              <!-- Quick Magic Menu (+) Button -->
+              <div class="quick-tools-wrapper">
+                <button class="btn-tool-circle" id="btnQuickTools" title="Fitur Cepat Wargative AI">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+
+                <!-- Popover Menu -->
+                <div class="quick-tools-popover" id="quickToolsPopover">
+                  <div class="popover-header">Fitur Cepat Wargative AI</div>
+                  <button class="popover-item" data-tool="magic-design">
+                    <span class="tool-icon">🪄</span>
+                    <div class="tool-info">
+                      <span class="tool-name">Magic Design</span>
+                      <span class="tool-sub">Konsep layout & buka di Studio</span>
+                    </div>
+                  </button>
+                  <button class="popover-item" data-tool="magic-copy">
+                    <span class="tool-icon">✍️</span>
+                    <div class="tool-info">
+                      <span class="tool-name">Magic Copywriter</span>
+                      <span class="tool-sub">Caption, Headline & Slogan</span>
+                    </div>
+                  </button>
+                  <button class="popover-item" data-tool="smart-palette">
+                    <span class="tool-icon">🎨</span>
+                    <div class="tool-info">
+                      <span class="tool-name">Smart Color Palette</span>
+                      <span class="tool-sub">5 perpaduan HEX & Gradient</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode Pills -->
+              <div class="active-mode-pill" id="activeModePill" style="display: none;">
+                <span id="activeModeText">Magic Design</span>
+                <button id="btnClearMode" title="Reset Mode">&times;</button>
               </div>
             </div>
 
-            <!-- Chips -->
-            <div class="suggestion-chips-row">
-              <span class="chip-label">Tanya Cepat:</span>
-              <button class="prompt-chip" data-target="chat" data-prompt="Berikan 3 rekomendasi font pairing modern untuk poster teknologi">Font Pairing Tech</button>
-              <button class="prompt-chip" data-target="chat" data-prompt="Bagaimana cara mengatur hierarki visual teks agar headline menonjol?">Hierarki Visual Teks</button>
-              <button class="prompt-chip" data-target="chat" data-prompt="Ide konten Instagram 1 minggu untuk bisnis coffee shop kekinian">Ide Konten 1 Minggu</button>
+            <div class="prompt-right-tools">
+              <!-- Microphone Button -->
+              <button class="btn-tool-circle btn-mic" id="btnVoiceMic" title="Bicara (Speech-to-Text)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </button>
+
+              <!-- Send Button -->
+              <button class="btn-send-prompt" id="btnSendPrompt" title="Kirim ke Wargative AI (Enter)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </footer>
     </main>
 
+    <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script type="module" src="./src/ai/ai.ts"></script>
