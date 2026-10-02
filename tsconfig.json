@@ -8,7 +8,8 @@
       "DOM.Iterable"
     ],
     "types": [
-      "vite/client"
+      "vite/client",
+      "node"
     ],
     "moduleResolution": "bundler",
     "skipLibCheck": true,
@@ -23,7 +24,8 @@
   },
   "include": [
     "*.ts",
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "api/**/*.ts"
   ],
   "exclude": [
     "*.mjs",
