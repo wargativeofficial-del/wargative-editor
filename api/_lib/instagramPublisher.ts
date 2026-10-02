@@ -16,7 +16,8 @@ import { decryptToken } from './crypto.js';
 export interface PublishInstagramOptions {
   connectionId: string;
   userId: string;
-  imageUrl: string;
+  imageUrl?: string;
+  imageUrls?: string[];
   caption?: string;
 }
 
@@ -53,7 +54,7 @@ export class InstagramPublishError extends Error {
 }
 
 export async function publishInstagramPost(options: PublishInstagramOptions): Promise<PublishInstagramResult> {
-  const { connectionId, userId, imageUrl, caption } = options;
+  const { connectionId, userId, imageUrl, imageUrls, caption } = options;
 
   if (!connectionId) {
     throw new InstagramPublishError('Parameter connectionId wajib disertakan.', {
@@ -62,16 +63,55 @@ export async function publishInstagramPost(options: PublishInstagramOptions): Pr
     });
   }
 
-  if (!imageUrl || !imageUrl.startsWith('https://')) {
-    throw new InstagramPublishError('Parameter imageUrl wajib berupa URL HTTPS publik yang valid.', {
+  // 1. Resolve & Validate Media URLs
+  let resolvedUrls: string[] = [];
+  if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+    resolvedUrls = imageUrls;
+  } else if (imageUrl && typeof imageUrl === 'string') {
+    const trimmed = imageUrl.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          resolvedUrls = parsed;
+        } else {
+          resolvedUrls = [trimmed];
+        }
+      } catch {
+        resolvedUrls = [trimmed];
+      }
+    } else {
+      resolvedUrls = [trimmed];
+    }
+  }
+
+  if (resolvedUrls.length === 0) {
+    throw new InstagramPublishError('Parameter imageUrl atau imageUrls wajib disertakan.', {
       statusCode: 400,
       errorType: 'Bad Request'
     });
   }
 
+  if (resolvedUrls.length > 10) {
+    throw new InstagramPublishError(`Instagram Carousel hanya mendukung maksimal 10 gambar per postingan (ditemukan: ${resolvedUrls.length}).`, {
+      statusCode: 400,
+      errorType: 'Bad Request'
+    });
+  }
+
+  for (let i = 0; i < resolvedUrls.length; i++) {
+    const url = resolvedUrls[i];
+    if (!url || typeof url !== 'string' || !url.startsWith('https://')) {
+      throw new InstagramPublishError(`URL media ke-${i + 1} tidak valid. Semua URL wajib menggunakan protokol HTTPS publik.`, {
+        statusCode: 400,
+        errorType: 'Bad Request'
+      });
+    }
+  }
+
   const supabase = getSupabaseAdmin();
 
-  // 1. Fetch social connection strictly scoped to user_id
+  // 2. Fetch social connection strictly scoped to user_id
   const { data: connection, error: connError } = await supabase
     .from('social_connections')
     .select('id, user_id, platform, platform_account_id, account_name, account_handle, encrypted_access_token, status')
@@ -100,7 +140,7 @@ export async function publishInstagramPost(options: PublishInstagramOptions): Pr
     });
   }
 
-  // 2. Decrypt Instagram Access Token
+  // 3. Decrypt Instagram Access Token
   let accessToken: string;
   try {
     accessToken = decryptToken(connection.encrypted_access_token);
@@ -115,74 +155,142 @@ export async function publishInstagramPost(options: PublishInstagramOptions): Pr
 
   const igUserId = connection.platform_account_id;
   const apiVersion = process.env.META_GRAPH_VERSION || 'v21.0';
+  const cleanCaption = caption && typeof caption === 'string' && caption.trim().length > 0 ? caption.trim() : null;
 
-  // 3. Meta Step 1: Create Media Container (POST /{ig-user-id}/media)
-  const containerUrl = `https://graph.instagram.com/${apiVersion}/${igUserId}/media`;
-  const containerParams = new URLSearchParams({
-    image_url: imageUrl,
-    access_token: accessToken
-  });
+  let publishTargetContainerId: string;
 
-  if (caption && typeof caption === 'string' && caption.trim().length > 0) {
-    containerParams.append('caption', caption.trim());
-  }
-
-  const containerRes = await fetch(containerUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: containerParams.toString()
-  });
-
-  const containerData = await containerRes.json().catch(() => null);
-
-  if (!containerData || containerData.error || !containerData.id) {
-    const errMsg = containerData?.error?.message || 'Meta menolak pembuatan kontainer media.';
-    const errCode = containerData?.error?.code;
-    const errSubcode = containerData?.error?.error_subcode;
-    console.error('[InstagramPublisher] Container creation error:', containerData?.error);
-    throw new InstagramPublishError(`Gagal membuat media container di Instagram: ${errMsg}`, {
-      statusCode: 400,
-      errorType: 'Meta Container Error',
-      code: errCode,
-      subcode: errSubcode
+  // 4. Branch: Single-Image Post vs Multi-Image Carousel Post
+  if (resolvedUrls.length === 1) {
+    // =========================================================================
+    // WORKFLOW A: Single-Image Post (Existing Proven Workflow)
+    // =========================================================================
+    const containerUrl = `https://graph.instagram.com/${apiVersion}/${igUserId}/media`;
+    const containerParams = new URLSearchParams({
+      image_url: resolvedUrls[0],
+      access_token: accessToken
     });
-  }
 
-  const containerId = containerData.id;
+    if (cleanCaption) {
+      containerParams.append('caption', cleanCaption);
+    }
 
-  // 4. Meta Step 2: Poll Container Readiness (Status Check)
-  let isReady = false;
-  let attempts = 0;
-  const maxAttempts = 6; // up to ~12 seconds
+    const containerRes = await fetch(containerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: containerParams.toString()
+    });
 
-  while (!isReady && attempts < maxAttempts) {
-    attempts++;
-    // Wait 2 seconds before status check
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const containerData = await containerRes.json().catch(() => null);
 
-    const statusUrl = `https://graph.instagram.com/${apiVersion}/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`;
-    const statusRes = await fetch(statusUrl);
-    const statusData = await statusRes.json().catch(() => null);
-    const statusCode = statusData?.status_code;
-
-    if (statusCode === 'FINISHED') {
-      isReady = true;
-      break;
-    } else if (statusCode === 'ERROR') {
-      console.error('[InstagramPublisher] Container processing status ERROR:', statusData);
-      throw new InstagramPublishError('Instagram gagal memproses gambar. Pastikan format gambar adalah JPEG dengan rasio aspek antara 4:5 hingga 1.91:1.', {
+    if (!containerData || containerData.error || !containerData.id) {
+      const errMsg = containerData?.error?.message || 'Meta menolak pembuatan kontainer media.';
+      const errCode = containerData?.error?.code;
+      const errSubcode = containerData?.error?.error_subcode;
+      console.error('[InstagramPublisher] Single container creation error:', containerData?.error);
+      throw new InstagramPublishError(`Gagal membuat media container di Instagram: ${errMsg}`, {
         statusCode: 400,
-        errorType: 'Media Processing Error'
+        errorType: 'Meta Container Error',
+        code: errCode,
+        subcode: errSubcode
       });
     }
+
+    publishTargetContainerId = containerData.id;
+
+    // Poll status for single container
+    await pollContainerStatus(apiVersion, publishTargetContainerId, accessToken, 'gambar');
+  } else {
+    // =========================================================================
+    // WORKFLOW B: Instagram Carousel Post (2–10 Slides)
+    // =========================================================================
+    const childContainerIds: string[] = [];
+
+    // Step B1: Create child item containers for each image slide (NO caption on child)
+    for (let i = 0; i < resolvedUrls.length; i++) {
+      const slideUrl = resolvedUrls[i];
+      const childParams = new URLSearchParams({
+        image_url: slideUrl,
+        is_carousel_item: 'true',
+        access_token: accessToken
+      });
+
+      const childRes = await fetch(`https://graph.instagram.com/${apiVersion}/${igUserId}/media`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: childParams.toString()
+      });
+
+      const childData = await childRes.json().catch(() => null);
+
+      if (!childData || childData.error || !childData.id) {
+        const errMsg = childData?.error?.message || `Meta menolak slide ke-${i + 1}.`;
+        const errCode = childData?.error?.code;
+        const errSubcode = childData?.error?.error_subcode;
+        console.error(`[InstagramPublisher] Carousel child ${i + 1} creation error:`, childData?.error);
+        throw new InstagramPublishError(`Gagal membuat item container carousel ke-${i + 1} di Instagram: ${errMsg}`, {
+          statusCode: 400,
+          errorType: 'Meta Carousel Item Error',
+          code: errCode,
+          subcode: errSubcode
+        });
+      }
+
+      childContainerIds.push(childData.id);
+    }
+
+    // Step B2: Poll all child item containers until FINISHED
+    for (let i = 0; i < childContainerIds.length; i++) {
+      await pollContainerStatus(apiVersion, childContainerIds[i], accessToken, `slide carousel ke-${i + 1}`);
+    }
+
+    // Step B3: Create Parent Carousel Container with children IDs and caption
+    const parentParams = new URLSearchParams({
+      media_type: 'CAROUSEL',
+      children: childContainerIds.join(','),
+      access_token: accessToken
+    });
+
+    if (cleanCaption) {
+      parentParams.append('caption', cleanCaption);
+    }
+
+    const parentRes = await fetch(`https://graph.instagram.com/${apiVersion}/${igUserId}/media`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: parentParams.toString()
+    });
+
+    const parentData = await parentRes.json().catch(() => null);
+
+    if (!parentData || parentData.error || !parentData.id) {
+      const errMsg = parentData?.error?.message || 'Meta menolak pembuatan kontainer carousel utama.';
+      const errCode = parentData?.error?.code;
+      const errSubcode = parentData?.error?.error_subcode;
+      console.error('[InstagramPublisher] Parent carousel container creation error:', parentData?.error);
+      throw new InstagramPublishError(`Gagal membuat kontainer carousel utama di Instagram: ${errMsg}`, {
+        statusCode: 400,
+        errorType: 'Meta Carousel Parent Error',
+        code: errCode,
+        subcode: errSubcode
+      });
+    }
+
+    publishTargetContainerId = parentData.id;
+
+    // Step B4: Poll status for parent carousel container
+    await pollContainerStatus(apiVersion, publishTargetContainerId, accessToken, 'carousel utama');
   }
 
-  // 5. Meta Step 3: Publish Container (POST /{ig-user-id}/media_publish)
+  // 5. Meta Publish: POST /{ig-user-id}/media_publish
   const publishUrl = `https://graph.instagram.com/${apiVersion}/${igUserId}/media_publish`;
   const publishParams = new URLSearchParams({
-    creation_id: containerId,
+    creation_id: publishTargetContainerId,
     access_token: accessToken
   });
 
@@ -209,7 +317,7 @@ export async function publishInstagramPost(options: PublishInstagramOptions): Pr
 
   const publishedPostId = publishData.id;
 
-  // 6. Meta Step 4: Fetch Official Post Permalink (Best Effort)
+  // 6. Meta Permalink: Fetch Official Post Permalink (Best Effort)
   let permalink: string | null = null;
   try {
     const permalinkUrl = `https://graph.instagram.com/${apiVersion}/${publishedPostId}?fields=id,permalink&access_token=${encodeURIComponent(accessToken)}`;
@@ -229,4 +337,46 @@ export async function publishInstagramPost(options: PublishInstagramOptions): Pr
     accountHandle: connection.account_handle,
     accountName: connection.account_name
   };
+}
+
+/**
+ * Polls container status until FINISHED or ERROR/timeout
+ */
+async function pollContainerStatus(
+  apiVersion: string,
+  containerId: string,
+  accessToken: string,
+  label: string
+): Promise<void> {
+  let isReady = false;
+  let attempts = 0;
+  const maxAttempts = 6; // up to ~12 seconds
+
+  while (!isReady && attempts < maxAttempts) {
+    attempts++;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const statusUrl = `https://graph.instagram.com/${apiVersion}/${containerId}?fields=status_code&access_token=${encodeURIComponent(accessToken)}`;
+    const statusRes = await fetch(statusUrl);
+    const statusData = await statusRes.json().catch(() => null);
+    const statusCode = statusData?.status_code;
+
+    if (statusCode === 'FINISHED') {
+      isReady = true;
+      break;
+    } else if (statusCode === 'ERROR') {
+      console.error(`[InstagramPublisher] Container (${label}) status ERROR:`, statusData);
+      throw new InstagramPublishError(`Instagram gagal memproses ${label}. Pastikan format gambar adalah JPEG/PNG dengan rasio aspek antara 4:5 hingga 1.91:1.`, {
+        statusCode: 400,
+        errorType: 'Media Processing Error'
+      });
+    }
+  }
+
+  if (!isReady) {
+    throw new InstagramPublishError(`Batas waktu pemrosesan ${label} di Instagram habis (timeout).`, {
+      statusCode: 408,
+      errorType: 'Processing Timeout'
+    });
+  }
 }
