@@ -101,37 +101,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rawUserId = String(tokenData.user_id || '');
 
     // 5. Exchange for Long-Lived User Access Token (~60 days validity)
-    // Official Instagram Login endpoints on graph.instagram.com are unversioned
+    // Official Instagram Login endpoints on graph.instagram.com are unversioned GET requests
     const longLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(instagramAppSecret)}&access_token=${encodeURIComponent(shortLivedToken)}`;
-    let longLivedRes = await fetch(longLivedUrl, { method: 'GET' });
-    let longLivedData = await longLivedRes.json().catch(() => null);
+    const longLivedRes = await fetch(longLivedUrl, { method: 'GET' });
+    const longLivedData = await longLivedRes.json().catch(() => null);
 
-    // If GET returns error, retry via POST application/x-www-form-urlencoded
-    if (!longLivedData || longLivedData.error || !longLivedData.access_token) {
-      console.warn('[API /auth/instagram/callback] GET long-lived exchange failed, retrying via POST:', longLivedData?.error);
-      const postBody = new URLSearchParams({
-        grant_type: 'ig_exchange_token',
-        client_secret: instagramAppSecret,
-        access_token: shortLivedToken
-      });
-      const postRes = await fetch('https://graph.instagram.com/access_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: postBody.toString()
-      });
-      const postData = await postRes.json().catch(() => null);
-      if (postData) {
-        longLivedData = postData;
-      }
-    }
+    // Strictly validate long-lived token response from GET
+    if (!longLivedRes.ok || !longLivedData || longLivedData.error || !longLivedData.access_token) {
+      const httpStatus = longLivedRes.status;
+      const errType = longLivedData?.error?.type || 'UnknownType';
+      const errCode = longLivedData?.error?.code !== undefined ? longLivedData.error.code : 'unknown';
+      const errSubcode = longLivedData?.error?.error_subcode;
+      const errMsg = longLivedData?.error?.message || 'Gagal menukar authorization code ke long-lived access token.';
 
-    // STRICT: Do NOT fallback to short-lived token!
-    if (!longLivedData || longLivedData.error || !longLivedData.access_token) {
-      const exchangeErrMsg = longLivedData?.error?.message || 'Gagal menukar authorization code ke long-lived access token.';
-      console.error('[API /auth/instagram/callback] Long-lived token exchange failed strictly:', longLivedData?.error);
-      return res.redirect(`/planner.html?meta_error=${encodeURIComponent('Gagal mendapatkan token permanen Instagram: ' + exchangeErrMsg)}`);
+      // Secure logging: Only metadata and status codes, zero credentials
+      console.error('[API /auth/instagram/callback] Long-lived token exchange failed:', {
+        httpStatus,
+        errorType: errType,
+        errorCode: errCode,
+        errorSubcode: errSubcode || null,
+        errorMessage: errMsg
+      });
+
+      const subcodeSuffix = errSubcode ? `, subcode: ${errSubcode}` : '';
+      const detailedError = `Gagal mendapatkan token permanen Instagram: ${errMsg} (code: ${errCode}${subcodeSuffix}, HTTP: ${httpStatus})`;
+
+      return res.redirect(`/planner.html?meta_error=${encodeURIComponent(detailedError)}`);
     }
 
     const finalAccessToken = longLivedData.access_token;
