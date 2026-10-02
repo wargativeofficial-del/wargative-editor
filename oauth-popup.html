@@ -252,19 +252,14 @@
           console.error('Hash parse error:', e);
         }
       } else {
-        // CASE 2: Launch Direct OAuth
+        // CASE 2: Launch Meta OAuth (Multi-User, works for any user and any account!)
         const redirectUri = window.location.origin + '/oauth-popup.html';
+        let scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
         if (channel === 'instagram') {
-          // PURE INSTAGRAM LOGIN (instagram.com)
-          const igScope = 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish';
-          const igAuthUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${INSTAGRAM_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(igScope)}`;
-          window.location.href = igAuthUrl;
-        } else {
-          // FACEBOOK LOGIN
-          const scope = 'pages_show_list,pages_manage_posts,pages_read_engagement';
-          const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=facebook`;
-          window.location.href = authUrl;
+          scope = 'pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish';
         }
+        const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
+        window.location.href = authUrl;
       }
     </script>
   </body>

@@ -1020,7 +1020,7 @@ class WargativeContentPlanner {
 
     if (this.btnStartOAuthText) {
       if (channel.id === 'instagram') {
-        this.btnStartOAuthText.textContent = 'Log in with Instagram';
+        this.btnStartOAuthText.textContent = 'Connect Instagram Business via Meta';
       } else if (channel.id === 'facebook') {
         this.btnStartOAuthText.textContent = 'Connect Facebook Page';
       } else {
@@ -1034,19 +1034,19 @@ class WargativeContentPlanner {
           <div class="step-flow-item">
             <div class="step-number-badge">1</div>
             <div class="step-text">
-              Log in directly with your <strong>Instagram account</strong> (instagram.com).
+              Convert your Instagram to an <strong>Instagram Business or Creator account</strong>.
             </div>
           </div>
           <div class="step-flow-item">
             <div class="step-number-badge">2</div>
             <div class="step-text">
-              Authorize Wargative Studio to manage feed posting and media.
+              Link it to your <strong>Facebook Page</strong> in Page Settings.
             </div>
           </div>
           <div class="step-flow-item">
             <div class="step-number-badge">3</div>
             <div class="step-text">
-              Start scheduling and auto-publishing directly to your Instagram feed!
+              Authorize via Meta to enable automatic Instagram feed publishing.
             </div>
           </div>
         `;
@@ -1169,7 +1169,7 @@ class WargativeContentPlanner {
       if (this.oauthBtnSpinner) this.oauthBtnSpinner.style.display = 'none';
       if (this.btnStartOAuthText) {
         if (channel.id === 'instagram') {
-          this.btnStartOAuthText.textContent = 'Log in with Instagram';
+          this.btnStartOAuthText.textContent = 'Connect Instagram Business via Meta';
         } else {
           this.btnStartOAuthText.textContent = `Connect ${channel.name}`;
         }
