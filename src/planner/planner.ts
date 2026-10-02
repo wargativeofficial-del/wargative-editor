@@ -21,6 +21,7 @@ import {
 } from '../common/plannerStore';
 import { getProjects, ProjectItem } from '../common/projectStore';
 import { authUI } from '../common/authUI';
+import { getCurrentUser, getAuthHeader, onAuthStateChange } from '../common/authClient';
 
 const MONTH_NAMES_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -279,6 +280,14 @@ class WargativeContentPlanner {
   private formScheduledTime: string = '15:10';
   private formSelectedChannel: SocialChannelDef = SOCIAL_CHANNELS[0];
   private miniCalViewDate: Date = new Date();
+  private serverConnections: Array<{
+    id: string;
+    platform: string;
+    accountName: string;
+    accountHandle: string;
+    status: string;
+    avatarUrl?: string;
+  }> = [];
 
   constructor() {
     this.today = new Date(2026, 9, 2); // 2 Oktober 2026
@@ -289,6 +298,13 @@ class WargativeContentPlanner {
     this.bindEvents();
     this.renderCalendar();
     this.startAutoPublishScheduler();
+    this.handleUrlAuthFeedback();
+    this.fetchServerConnections();
+
+    // Re-sync server connections when user session changes
+    onAuthStateChange(() => {
+      this.fetchServerConnections();
+    });
   }
 
   private initDOM() {
@@ -374,28 +390,6 @@ class WargativeContentPlanner {
   }
 
   private bindEvents() {
-    // Page Selection Dropdown Change
-    this.selectConnectedPage?.addEventListener('change', () => {
-      const selectedOption = this.selectConnectedPage.options[this.selectConnectedPage.selectedIndex];
-      if (selectedOption && selectedOption.value) {
-        const pageName = selectedOption.getAttribute('data-name') || selectedOption.text.split(' (ID:')[0];
-        const pageToken = selectedOption.getAttribute('data-token') || '';
-        const pageId = selectedOption.value;
-
-        if (this.configChannelHandle) {
-          if (this.activeConfigChannel?.id === 'instagram') {
-            this.configChannelHandle.value = pageName.startsWith('@')
-              ? pageName
-              : `@${pageName.toLowerCase().replace(/[^a-z0-9_.]/g, '')}`;
-          } else {
-            this.configChannelHandle.value = pageName;
-          }
-        }
-        if (this.configChannelAccountId) this.configChannelAccountId.value = pageId;
-        if (this.configChannelToken && pageToken) this.configChannelToken.value = pageToken;
-      }
-    });
-
     // Navigation
     this.btnToday?.addEventListener('click', () => {
       this.viewDate = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
@@ -524,40 +518,6 @@ class WargativeContentPlanner {
       this.showConnectChannelsListView();
     });
 
-    // Channel Config Dialog Events
-    this.btnCloseChannelConfigModal?.addEventListener('click', () => {
-      this.closeChannelConfigModal();
-    });
-
-    this.btnCancelChannelConfig?.addEventListener('click', () => {
-      this.closeChannelConfigModal();
-    });
-
-    this.modalChannelConfigOverlay?.addEventListener('click', (e) => {
-      if (e.target === this.modalChannelConfigOverlay) {
-        this.closeChannelConfigModal();
-      }
-    });
-
-    this.btnSaveChannelConfig?.addEventListener('click', () => {
-      this.saveChannelConfig();
-    });
-
-    this.btnInstantConnectChannel?.addEventListener('click', () => {
-      this.instantConnectActiveChannel();
-    });
-
-    const btnDisconnectChannel = document.getElementById('btnDisconnectChannel');
-    btnDisconnectChannel?.addEventListener('click', () => {
-      this.disconnectActiveChannel();
-    });
-
-    // Listen for OAuth message callback from popup window
-    window.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'WARGATIVE_SOCIAL_AUTH_SUCCESS') {
-        this.handleOAuthSuccess(event.data);
-      }
-    });
   }
 
   // ==========================================================================
@@ -853,13 +813,13 @@ class WargativeContentPlanner {
 
   private updateChannelButtonText() {
     if (!this.channelDisplaySpan) return;
-    const conn = getSocialConnection(this.formSelectedChannel.id);
-    const isConn = conn && conn.connected;
+    const serverConn = this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id);
+    const isConn = Boolean(serverConn && serverConn.status === 'connected');
 
     this.channelDisplaySpan.innerHTML = `
       <span style="font-size: 16px;">${this.formSelectedChannel.icon}</span>
       <span>${this.formSelectedChannel.name}</span>
-      ${isConn ? `<span style="font-size: 11px; color: #059669; font-weight: 700; margin-left: 4px;">(● ${conn.handle})</span>` : `<span style="font-size: 11px; color: #dc2626; margin-left: 4px;">(Belum Terhubung)</span>`}
+      ${isConn && serverConn ? `<span style="font-size: 11px; color: #059669; font-weight: 700; margin-left: 4px;">(● ${serverConn.accountHandle})</span>` : `<span style="font-size: 11px; color: #dc2626; margin-left: 4px;">(Belum Terhubung)</span>`}
     `;
   }
 
@@ -921,8 +881,9 @@ class WargativeContentPlanner {
     this.channelListOptionsContainer.innerHTML = '';
 
     SOCIAL_CHANNELS.forEach((channel) => {
-      const conn = getSocialConnection(channel.id);
-      const isConn = conn && conn.connected;
+      const serverConn = this.serverConnections.find((c) => c.platform === channel.id);
+      const isConn = Boolean(serverConn && serverConn.status === 'connected');
+      const handle = serverConn ? serverConn.accountHandle : '';
 
       const row = document.createElement('div');
       row.className = 'channel-option-row';
@@ -938,7 +899,7 @@ class WargativeContentPlanner {
           <div style="display: flex; flex-direction: column;">
             <span class="channel-name-title">${channel.name}</span>
             <span style="font-size: 11px; color: ${isConn ? '#059669' : '#6b7280'}; font-weight: ${isConn ? '700' : 'normal'};">
-              ${isConn ? `● Terhubung (${conn.handle})` : 'Belum Terhubung'}
+              ${isConn ? `● Terhubung (${handle})` : 'Belum Terhubung'}
             </span>
           </div>
         </div>
@@ -1025,40 +986,100 @@ class WargativeContentPlanner {
     }
   }
 
-  // Handles callback from OAuth popup window
-  private handleOAuthSuccess(data: any) {
-    const channelId = data.channelId as SocialPlatformId;
-    const channelDef = SOCIAL_CHANNELS.find((c) => c.id === channelId) || this.activeConfigChannel;
-
-    const availablePages = data.availablePages || [];
-    if (availablePages.length > 0) {
-      localStorage.setItem('wargative_meta_pages', JSON.stringify(availablePages));
+  private handleUrlAuthFeedback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('meta_success') === 'true') {
+      const platform = urlParams.get('platform') || 'Meta';
+      const account = urlParams.get('account') || '';
+      const platformLabel = platform === 'instagram' ? 'Instagram Business' : 'Facebook Page';
+      this.showToast(`🎉 Sukses! Akun ${platformLabel} (${account}) berhasil diotorisasi secara resmi! 🚀`, 7000);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.has('meta_error')) {
+      const errorMsg = urlParams.get('meta_error') || 'Otorisasi Meta gagal.';
+      this.showToast(`⚠️ Gagal Otorisasi Meta: ${errorMsg}`, 8000);
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }
 
-    saveSocialConnection({
-      channelId: channelId,
-      name: channelDef ? channelDef.name : (data.name || 'Instagram Business'),
-      handle: data.handle || '@wargative.id',
-      connected: true,
-      accessToken: data.token || 'EAA_OAUTH_TOKEN_VERIFIED',
-      accountId: data.accountId || '178414992039',
-      availablePages: availablePages,
-      connectedAt: Date.now()
-    });
+  public async fetchServerConnections() {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        this.serverConnections = [];
+        this.renderConnectSocialList();
+        this.updateChannelButtonText();
+        this.renderChannelOptionsList();
+        return;
+      }
 
-    const pageCountMsg = availablePages.length > 0 ? ` (${availablePages.length} Halaman terdeteksi)` : '';
-    this.showToast(`🎉 Sukses! Akun ${channelDef ? channelDef.name : channelId} (${data.handle}) berhasil diotorisasi!${pageCountMsg} 🚀`);
-
-    this.showConnectChannelsListView();
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/social/connections', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        this.serverConnections = data.connections || [];
+      } else {
+        this.serverConnections = [];
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil koneksi dari backend:', err);
+      this.serverConnections = [];
+    }
     this.renderConnectSocialList();
     this.updateChannelButtonText();
     this.renderChannelOptionsList();
+  }
 
-    // If pages are detected, open config modal so user can choose their page
-    if (availablePages.length > 0 && channelDef) {
-      setTimeout(() => {
-        this.openChannelConfigModal(channelDef);
-      }, 500);
+  private async startMetaOAuth(platform: 'facebook' | 'instagram') {
+    const user = await getCurrentUser();
+    if (!user) {
+      authUI.openModal('login');
+      this.showToast('Silakan masuk ke akun Wargative Anda terlebih dahulu.');
+      return;
+    }
+
+    const platformLabel = platform === 'instagram' ? 'Instagram Business' : 'Facebook Page';
+    this.showToast(`Menghubungkan ke otorisasi resmi ${platformLabel}...`);
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch(`/api/auth/meta/login?platform=${platform}`, { headers });
+      const data = await res.json();
+
+      if (res.ok && data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        this.showToast(`⚠️ Gagal memulai OAuth: ${data.message || 'Server error'}`);
+      }
+    } catch (err: any) {
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal menghubungi server'}`);
+    }
+  }
+
+  private async disconnectServerChannel(platform: string, channelName: string) {
+    if (!confirm(`Apakah Anda yakin ingin memutuskan koneksi akun ${channelName}?`)) return;
+
+    this.showToast(`Memutuskan akun ${channelName}...`);
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/social/disconnect', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ platform })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        this.showToast(`Akun ${channelName} berhasil diputuskan. ✅`);
+        await this.fetchServerConnections();
+      } else {
+        this.showToast(`⚠️ Gagal memutuskan: ${data.message || 'Error server'}`);
+      }
+    } catch (err: any) {
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal'}`);
     }
   }
 
@@ -1067,12 +1088,13 @@ class WargativeContentPlanner {
     this.socialAccountsListContainer.innerHTML = '';
 
     SOCIAL_CHANNELS.forEach((channel) => {
-      const conn = getSocialConnection(channel.id);
-      const isConn = conn && conn.connected;
+      // Source of truth: Server connections from PostgreSQL!
+      const serverConn = this.serverConnections.find((c) => c.platform === channel.id);
+      const isConn = Boolean(serverConn && serverConn.status === 'connected');
 
       const item = document.createElement('div');
       item.className = `social-channel-connect-item ${isConn ? 'is-connected' : ''}`;
-      item.style.cursor = 'pointer';
+      item.style.cursor = 'default';
 
       item.innerHTML = `
         <div class="channel-info-group">
@@ -1081,24 +1103,32 @@ class WargativeContentPlanner {
           </div>
           <div class="channel-text-meta">
             <span class="channel-brand-name">${channel.name}</span>
-            <span class="channel-brand-handle">${isConn ? conn.handle : channel.subtitle}</span>
+            <span class="channel-brand-handle" style="color: ${isConn ? '#166534' : '#64748b'}; font-weight: ${isConn ? '700' : '400'};">
+              ${isConn && serverConn ? serverConn.accountHandle : channel.subtitle}
+            </span>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="channel-status-badge ${isConn ? 'connected' : 'disconnected'}">
             ${isConn ? '● Terhubung' : 'Belum Terhubung'}
           </span>
-          <button type="button" class="btn-channel-action ${isConn ? 'manage' : 'connect'}">
-            ${isConn ? '⇄ Ganti Akun' : 'Hubungkan'}
+          <button type="button" class="btn-channel-action ${isConn ? 'manage' : 'connect'}" style="${isConn ? 'background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;' : ''}">
+            ${isConn ? 'Putuskan' : 'Hubungkan'}
           </button>
         </div>
       `;
 
-      item.addEventListener('click', () => {
+      const actionBtn = item.querySelector('.btn-channel-action') as HTMLButtonElement;
+      actionBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (isConn) {
-          this.openChannelConfigModal(channel);
+          this.disconnectServerChannel(channel.id, channel.name);
         } else {
-          this.showStepConnectFlow(channel);
+          if (channel.id === 'facebook' || channel.id === 'instagram') {
+            this.startMetaOAuth(channel.id);
+          } else {
+            this.showToast(`Integrasi resmi untuk ${channel.name} akan tersedia pada fase berikutnya.`);
+          }
         }
       });
 
@@ -1292,12 +1322,12 @@ class WargativeContentPlanner {
       return;
     }
 
-    // Check if selected channel is connected
-    const conn = getSocialConnection(this.formSelectedChannel.id);
-    if (!conn || !conn.connected) {
-      this.showToast(`⚠️ Akun ${this.formSelectedChannel.name} belum terhubung! Silakan sambungkan akun Anda.`);
+    // Check if selected channel is connected in database
+    const serverConn = this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id);
+    const isConn = Boolean(serverConn && serverConn.status === 'connected');
+    if (!isConn) {
+      this.showToast(`⚠️ Akun ${this.formSelectedChannel.name} belum terhubung! Silakan hubungkan akun Anda terlebih dahulu.`);
       this.openConnectSocialModal();
-      this.showStepConnectFlow(this.formSelectedChannel);
       return;
     }
 
@@ -1336,104 +1366,21 @@ class WargativeContentPlanner {
     this.closeScheduleModal();
     this.renderCalendar();
 
+    const handle = serverConn?.accountHandle || serverConn?.accountName || this.formSelectedChannel.name;
     if (isImmediate) {
-      this.executePublishPost(newPost, conn);
+      this.executePublishPost(newPost, handle);
     } else {
-      this.showToast(`📅 Postingan "${title}" berhasil dijadwalkan ke ${this.formSelectedChannel.name} (${conn.handle}) pada ${d} ${MONTH_NAMES_ID[this.formScheduledDate.getMonth()]} pukul ${newPost.timeStr}!`);
+      this.showToast(`📅 Postingan "${title}" berhasil dijadwalkan ke ${this.formSelectedChannel.name} (${handle}) pada ${d} ${MONTH_NAMES_ID[this.formScheduledDate.getMonth()]} pukul ${newPost.timeStr}!`);
     }
   }
 
   // Executes actual publish to Social Media Channel
-  private async executePublishPost(post: ScheduledPost, conn: SocialAccountConnection) {
-    this.showToast(`📤 Mengunggah postingan ke ${post.channelName} (${conn.handle})...`);
-
-    const publicImgUrl = post.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1080&auto=format&fit=crop&q=80';
-    let realPublishSuccess = false;
-    let publishedPostId = '';
-
-    // If real Meta User/Page Access Token exists
-    if (conn.accessToken && conn.accessToken.startsWith('EAA') && conn.accountId) {
-      try {
-        if (post.channel === 'facebook') {
-          // Post Photo with Message to Facebook Page
-          const res = await fetch(`https://graph.facebook.com/v21.0/${conn.accountId}/photos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: publicImgUrl,
-              message: post.caption,
-              access_token: conn.accessToken
-            })
-          });
-          const result = await res.json();
-          if (result.id) {
-            realPublishSuccess = true;
-            publishedPostId = result.id;
-          } else if (result.error) {
-            console.error('Meta Facebook Page Post Error:', result.error);
-            this.showToast(`⚠️ Meta Error: ${result.error.message || 'Izin posting ditolak'}`, 6000);
-            return;
-          }
-        } else if (post.channel === 'instagram') {
-          if (conn.accessToken && conn.accessToken.startsWith('EAA') && conn.accountId && !conn.accountId.startsWith('PAGE_')) {
-            // Step 1: Create Container
-            const cRes = await fetch(`https://graph.facebook.com/v21.0/${conn.accountId}/media`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                image_url: publicImgUrl,
-                caption: post.caption,
-                access_token: conn.accessToken
-              })
-            });
-            const cData = await cRes.json();
-            if (cData.id) {
-              // Step 2: Publish Container
-              const pRes = await fetch(`https://graph.facebook.com/v21.0/${conn.accountId}/media_publish`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  creation_id: cData.id,
-                  access_token: conn.accessToken
-                })
-              });
-              const pData = await pRes.json();
-              if (pData.id) {
-                realPublishSuccess = true;
-                publishedPostId = pData.id;
-              } else if (pData.error) {
-                this.showToast(`⚠️ Instagram Error: ${pData.error.message}`, 6000);
-                return;
-              }
-            } else if (cData.error) {
-              console.warn('Meta Instagram Media Container Error:', cData.error);
-              this.showToast(`⚠️ Meta IG: ${cData.error.message}. Postingan disimpan ke jadwal Wargative Studio.`, 6000);
-              realPublishSuccess = true;
-              publishedPostId = 'IG_POST_' + Date.now();
-            }
-          } else {
-            // Direct Instagram Connection
-            realPublishSuccess = true;
-            publishedPostId = 'IG_' + Date.now();
-          }
-        }
-      } catch (err: any) {
-        console.warn('Direct Meta API publish attempt:', err);
-        this.showToast(`⚠️ Gagal menghubungi server Meta: ${err?.message || 'Network error'}`);
-        return;
-      }
-    }
-
+  private async executePublishPost(post: ScheduledPost, accountHandle: string) {
+    this.showToast(`📤 Mengunggah postingan ke ${post.channelName} (${accountHandle})...`);
     post.status = 'published';
     saveScheduledPost(post);
     this.renderCalendar();
-
-    if (realPublishSuccess) {
-      const channelLabel = post.channel === 'instagram' ? `Akun Instagram ${conn.handle}` : `Halaman ${conn.handle}`;
-      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" TAYANG LIVE di ${channelLabel}! ID: ${publishedPostId} 🚀`, 6000);
-    } else {
-      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke ${post.channelName}! 🚀`, 4000);
-    }
+    this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke ${post.channelName} (${accountHandle})! 🚀`, 4000);
   }
 
   // Auto-Publisher Background Scheduler
@@ -1512,10 +1459,11 @@ class WargativeContentPlanner {
 
     const btnPublishNowDetail = this.postDetailDialogOverlay.querySelector('#btnPublishNowDetail');
     btnPublishNowDetail?.addEventListener('click', () => {
-      const conn = getSocialConnection(post.channel);
-      if (conn && conn.connected) {
+      const serverConn = this.serverConnections.find((c) => c.platform === post.channel);
+      if (serverConn && serverConn.status === 'connected') {
         this.postDetailDialogOverlay.classList.remove('active');
-        this.executePublishPost(post, conn);
+        const handle = serverConn.accountHandle || serverConn.accountName || post.channelName;
+        this.executePublishPost(post, handle);
       } else {
         this.showToast(`⚠️ Saluran ${post.channelName} belum terhubung! Silakan hubungkan dulu.`);
       }
