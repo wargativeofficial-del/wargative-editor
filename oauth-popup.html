@@ -325,9 +325,14 @@
     <script>
       const META_APP_ID = '1077172458260514';
 
-      // Parse Query Parameters
+      // Parse Query & Hash Parameters
       const urlParams = new URLSearchParams(window.location.search);
-      const channel = urlParams.get('channel') || 'instagram';
+      let channel = urlParams.get('channel') || urlParams.get('state');
+      if (!channel && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        channel = hashParams.get('state') || 'instagram';
+      }
+      if (!channel) channel = 'instagram';
 
       const brandLogo = document.getElementById('brandLogo');
       const oauthTitle = document.getElementById('oauthTitle');
@@ -421,9 +426,9 @@
       if (btnDirectMetaOAuth) {
         if (channel === 'instagram' || channel === 'facebook' || channel === 'threads') {
           btnDirectMetaOAuth.addEventListener('click', () => {
-            const redirectUri = window.location.origin + '/oauth-popup.html?channel=' + channel;
+            const redirectUri = window.location.origin + '/oauth-popup.html';
             const scope = 'instagram_basic,instagram_content_publish,pages_show_list,pages_manage_posts,pages_read_engagement';
-            const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
+            const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&state=${channel}`;
             window.location.href = authUrl;
           });
         } else {
