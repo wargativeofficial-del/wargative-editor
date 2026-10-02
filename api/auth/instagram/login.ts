@@ -1,6 +1,7 @@
 /**
- * Endpoint: GET /api/auth/meta/login
- * Initiates official Meta OAuth 2.0 Authorization Code flow for Facebook & Instagram.
+ * Endpoint: GET /api/auth/instagram/login
+ * Initiates official Instagram Standalone OAuth 2.0 flow.
+ * Does NOT require a Facebook Page.
  * 
  * Security:
  * - Requires verified Supabase Auth JWT
@@ -27,33 +28,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await authenticateRequest(req, res);
   if (!user) return; // Response handled by authenticateRequest
 
-  // 2. Validate platform
-  const platform = req.query.platform === 'instagram' ? 'instagram' : 'facebook';
-
-  // 3. Resolve Meta App Credentials & Configuration ID
-  const metaAppId = process.env.META_APP_ID || '1074079788556384';
-  if (!metaAppId) {
+  // 2. Resolve Instagram App Credentials
+  const instagramAppId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
+  if (!instagramAppId) {
     return res.status(500).json({
       error: 'Configuration Error',
-      message: 'META_APP_ID belum dikonfigurasi di environment variables server.'
-    });
-  }
-
-  const metaConfigId = process.env.META_CONFIG_ID;
-  if (!metaConfigId) {
-    return res.status(500).json({
-      error: 'Configuration Error',
-      message: 'META_CONFIG_ID belum dikonfigurasi di environment variables server.'
+      message: 'INSTAGRAM_APP_ID belum dikonfigurasi di environment variables server.'
     });
   }
 
   // Resolve Redirect URI
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'wargative-editor.vercel.app';
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const defaultRedirectUri = `${proto}://${host}/api/auth/meta/callback`;
-  const redirectUri = process.env.META_REDIRECT_URI || defaultRedirectUri;
+  const defaultRedirectUri = `${proto}://${host}/api/auth/instagram/callback`;
+  const redirectUri = process.env.INSTAGRAM_REDIRECT_URI || defaultRedirectUri;
 
-  // 4. Generate cryptographically secure CSRF state token (32 bytes)
+  // 3. Generate cryptographically secure CSRF state token (32 bytes)
   const stateToken = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
@@ -63,34 +53,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Store state in PostgreSQL for one-time callback validation
     const { error: stateError } = await supabase.from('oauth_states').insert({
       user_id: user.id,
-      platform: platform,
+      platform: 'instagram',
       state_token: stateToken,
       expires_at: expiresAt
     });
 
     if (stateError) {
-      console.error('[API /auth/meta/login] Gagal menyimpan oauth state:', stateError);
+      console.error('[API /auth/instagram/login] Gagal menyimpan oauth state:', stateError);
       return res.status(500).json({
         error: 'Database Error',
-        message: 'Gagal membuat sesi keamanan OAuth (CSRF state).',
+        message: 'Gagal membuat sesi keamanan OAuth Instagram (CSRF state).',
         detail: stateError.message
       });
     }
 
-    // 5. Build official Meta Authorization URL using Facebook Login for Business Configuration ID
-    const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${metaAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${stateToken}&response_type=code&config_id=${encodeURIComponent(metaConfigId)}`;
+    // 4. Scopes officially required for Instagram Content Publishing & Profile reading
+    const scopes = process.env.INSTAGRAM_SCOPES || 'instagram_business_basic,instagram_business_content_publish';
+
+    // 5. Build official Instagram Standalone Authorization URL
+    const authUrl = `https://www.instagram.com/oauth/authorize?client_id=${instagramAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${stateToken}`;
 
     return res.status(200).json({
       success: true,
       authUrl: authUrl,
-      platform: platform,
+      platform: 'instagram',
       redirectUri: redirectUri
     });
   } catch (err: any) {
-    console.error('[API /auth/meta/login] Server exception:', err);
+    console.error('[API /auth/instagram/login] Server exception:', err);
     return res.status(500).json({
       error: 'Internal Server Error',
-      message: 'Terjadi kesalahan saat memulai proses otorisasi Meta.',
+      message: 'Terjadi kesalahan saat memulai proses otorisasi Instagram.',
       detail: err?.message
     });
   }

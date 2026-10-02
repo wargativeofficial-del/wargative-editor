@@ -1034,6 +1034,43 @@ class WargativeContentPlanner {
     this.renderChannelOptionsList();
   }
 
+  private async startInstagramOAuth() {
+    const user = await getCurrentUser();
+    if (!user) {
+      authUI.openModal('login');
+      this.showToast('Silakan masuk ke akun Wargative Anda terlebih dahulu.');
+      return;
+    }
+
+    this.showToast('Menghubungkan ke otorisasi resmi Instagram Business...');
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/auth/instagram/login', { headers });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText = '';
+
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        rawText = await res.text().catch(() => '');
+      }
+
+      if (res.ok && data?.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        const detailMsg = data?.message || data?.error || rawText || res.statusText || 'Server error';
+        console.error(`[Instagram OAuth] Error HTTP ${res.status}:`, detailMsg);
+        this.showToast(`⚠️ Gagal memulai Instagram OAuth (HTTP ${res.status}): ${detailMsg}`, 7000);
+      }
+    } catch (err: any) {
+      console.error('[Instagram OAuth] Network exception:', err);
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal menghubungi server'}`, 7000);
+    }
+  }
+
   private async startMetaOAuth(platform: 'facebook' | 'instagram') {
     const user = await getCurrentUser();
     if (!user) {
@@ -1072,8 +1109,46 @@ class WargativeContentPlanner {
     }
   }
 
+  private async disconnectSpecificConnection(connectionId: string, accountName: string) {
+    if (!confirm(`Apakah Anda yakin ingin memutuskan koneksi akun ${accountName}?`)) return;
+
+    this.showToast(`Memutuskan akun ${accountName}...`);
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/social/disconnect', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ connectionId })
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText = '';
+
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        rawText = await res.text().catch(() => '');
+      }
+
+      if (res.ok && data?.success) {
+        this.showToast(`Akun ${accountName} berhasil diputuskan. ✅`);
+        await this.fetchServerConnections();
+      } else {
+        const detailMsg = data?.message || data?.error || rawText || `HTTP ${res.status}`;
+        this.showToast(`⚠️ Gagal memutuskan (HTTP ${res.status}): ${detailMsg}`, 7000);
+      }
+    } catch (err: any) {
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal'}`, 7000);
+    }
+  }
+
   private async disconnectServerChannel(platform: string, channelName: string) {
-    if (!confirm(`Apakah Anda yakin ingin memutuskan koneksi akun ${channelName}?`)) return;
+    if (!confirm(`Apakah Anda yakin ingin memutuskan seluruh koneksi akun ${channelName}?`)) return;
 
     this.showToast(`Memutuskan akun ${channelName}...`);
 
@@ -1115,48 +1190,100 @@ class WargativeContentPlanner {
     this.socialAccountsListContainer.innerHTML = '';
 
     SOCIAL_CHANNELS.forEach((channel) => {
-      // Source of truth: Server connections from PostgreSQL!
-      const serverConn = this.serverConnections.find((c) => c.platform === channel.id);
-      const isConn = Boolean(serverConn && serverConn.status === 'connected');
+      // Source of truth: Server connections from PostgreSQL (multi-account supported)
+      const channelConns = this.serverConnections.filter(
+        (c) => c.platform === channel.id && c.status === 'connected'
+      );
+      const isConn = channelConns.length > 0;
 
       const item = document.createElement('div');
       item.className = `social-channel-connect-item ${isConn ? 'is-connected' : ''}`;
       item.style.cursor = 'default';
+      item.style.display = 'flex';
+      item.style.flexDirection = 'column';
+      item.style.gap = '8px';
+
+      const statusBadgeText = isConn
+        ? channelConns.length > 1
+          ? `● ${channelConns.length} Terhubung`
+          : `● Terhubung`
+        : 'Belum Terhubung';
+
+      const subtitleText = isConn
+        ? channelConns.map((c) => c.accountHandle || c.accountName).join(', ')
+        : channel.subtitle;
 
       item.innerHTML = `
-        <div class="channel-info-group">
-          <div class="channel-brand-icon" style="background: ${channel.color}18; color: ${channel.color};">
-            ${channel.icon}
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="channel-info-group">
+            <div class="channel-brand-icon" style="background: ${channel.color}18; color: ${channel.color};">
+              ${channel.icon}
+            </div>
+            <div class="channel-text-meta">
+              <span class="channel-brand-name">${channel.name}</span>
+              <span class="channel-brand-handle" style="color: ${isConn ? '#166534' : '#64748b'}; font-weight: ${isConn ? '700' : '400'};">
+                ${subtitleText}
+              </span>
+            </div>
           </div>
-          <div class="channel-text-meta">
-            <span class="channel-brand-name">${channel.name}</span>
-            <span class="channel-brand-handle" style="color: ${isConn ? '#166534' : '#64748b'}; font-weight: ${isConn ? '700' : '400'};">
-              ${isConn && serverConn ? serverConn.accountHandle : channel.subtitle}
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="channel-status-badge ${isConn ? 'connected' : 'disconnected'}">
+              ${statusBadgeText}
             </span>
+            <button type="button" class="btn-channel-action ${isConn ? 'manage' : 'connect'}" style="${isConn ? 'background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe;' : ''}">
+              ${isConn ? '+ Tambah' : 'Hubungkan'}
+            </button>
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="channel-status-badge ${isConn ? 'connected' : 'disconnected'}">
-            ${isConn ? '● Terhubung' : 'Belum Terhubung'}
-          </span>
-          <button type="button" class="btn-channel-action ${isConn ? 'manage' : 'connect'}" style="${isConn ? 'background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3;' : ''}">
-            ${isConn ? 'Putuskan' : 'Hubungkan'}
-          </button>
-        </div>
+        ${
+          isConn
+            ? `
+          <div style="margin-top: 4px; border-top: 1px solid #f1f5f9; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; width: 100%;">
+            ${channelConns
+              .map(
+                (conn) => `
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #f8fafc; border-radius: 6px; font-size: 12px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="color: #10b981; font-size: 14px;">●</span>
+                  <span style="font-weight: 700; color: #1e293b;">${conn.accountHandle || conn.accountName}</span>
+                </div>
+                <button type="button" class="btn-disconnect-sub-account" data-id="${conn.id}" data-name="${conn.accountHandle || conn.accountName}" style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">
+                  Putuskan
+                </button>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        `
+            : ''
+        }
       `;
 
+      // Connect button trigger
       const actionBtn = item.querySelector('.btn-channel-action') as HTMLButtonElement;
       actionBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (isConn) {
-          this.disconnectServerChannel(channel.id, channel.name);
+        if (channel.id === 'instagram') {
+          this.startInstagramOAuth();
+        } else if (channel.id === 'facebook') {
+          this.startMetaOAuth('facebook');
         } else {
-          if (channel.id === 'facebook' || channel.id === 'instagram') {
-            this.startMetaOAuth(channel.id);
-          } else {
-            this.showToast(`Integrasi resmi untuk ${channel.name} akan tersedia pada fase berikutnya.`);
-          }
+          this.showToast(`Integrasi resmi untuk ${channel.name} akan tersedia pada fase berikutnya.`);
         }
+      });
+
+      // Individual sub-account disconnect buttons
+      item.querySelectorAll('.btn-disconnect-sub-account').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const target = e.currentTarget as HTMLElement;
+          const connId = target.getAttribute('data-id') || '';
+          const connName = target.getAttribute('data-name') || '';
+          if (connId) {
+            this.disconnectSpecificConnection(connId, connName);
+          }
+        });
       });
 
       this.socialAccountsListContainer.appendChild(item);

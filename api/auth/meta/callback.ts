@@ -159,43 +159,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.redirect(`/planner.html?meta_error=${encodeURIComponent('Gagal menyimpan koneksi Instagram ke database: ' + upsertError.message)}`);
       }
     } else {
-      // Facebook Page Connection
-      const page = pages[0]; // Connect primary selected Page
-      const targetToken = page.access_token || userAccessToken;
-      const encryptedToken = encryptToken(targetToken);
-      connectedAccountHandle = page.name;
+      // Facebook Page Connection: Store ALL authorized pages (e.g. Bimbi, Jadiin Cuan, Shiro Movie)
+      const pageNames: string[] = [];
+      for (const page of pages) {
+        const targetToken = page.access_token || userAccessToken;
+        const encryptedToken = encryptToken(targetToken);
+        pageNames.push(page.name);
 
-      const { error: upsertError } = await supabase
-        .from('social_connections')
-        .upsert(
-          {
-            user_id: userId,
-            platform: 'facebook',
-            platform_account_id: page.id,
-            account_name: page.name,
-            account_handle: page.name,
-            avatar_url: null,
-            encrypted_access_token: encryptedToken,
-            granted_scopes: [
-              'pages_show_list',
-              'pages_read_engagement',
-              'pages_manage_posts'
-            ],
-            metadata: {
-              category: page.category || 'Business Page'
+        const { error: upsertError } = await supabase
+          .from('social_connections')
+          .upsert(
+            {
+              user_id: userId,
+              platform: 'facebook',
+              platform_account_id: page.id,
+              account_name: page.name,
+              account_handle: page.name,
+              avatar_url: null,
+              encrypted_access_token: encryptedToken,
+              granted_scopes: [
+                'pages_show_list',
+                'pages_read_engagement',
+                'pages_manage_posts'
+              ],
+              metadata: {
+                category: page.category || 'Business Page'
+              },
+              status: 'connected',
+              updated_at: new Date().toISOString()
             },
-            status: 'connected',
-            updated_at: new Date().toISOString()
-          },
-          {
-            onConflict: 'user_id,platform,platform_account_id'
-          }
-        );
+            {
+              onConflict: 'user_id,platform,platform_account_id'
+            }
+          );
 
-      if (upsertError) {
-        console.error('[API /auth/meta/callback] Gagal menyimpan koneksi Facebook:', upsertError);
-        return res.redirect(`/planner.html?meta_error=${encodeURIComponent('Gagal menyimpan koneksi Facebook ke database: ' + upsertError.message)}`);
+        if (upsertError) {
+          console.error('[API /auth/meta/callback] Gagal menyimpan koneksi Facebook Page:', page.name, upsertError);
+        }
       }
+      connectedAccountHandle = pageNames.join(', ');
     }
 
     // 8. Redirect back to frontend Planner with verified success parameters
