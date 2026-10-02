@@ -3,6 +3,20 @@
  * for Wargative Content Planner (Canva Planner Clone)
  */
 
+export type SocialPlatformId = 'instagram' | 'tiktok' | 'facebook' | 'threads' | 'youtube' | 'twitter' | 'pinterest';
+
+export interface SocialAccountConnection {
+  channelId: SocialPlatformId;
+  name: string;
+  handle: string;
+  connected: boolean;
+  avatarUrl?: string;
+  accessToken?: string;
+  accountId?: string;
+  apiKey?: string;
+  connectedAt?: number;
+}
+
 export interface ScheduledPost {
   id: string;
   projectId?: string;
@@ -12,7 +26,7 @@ export interface ScheduledPost {
   thumbnailIcon?: string;
   previewType?: string;
   imageUrl?: string;
-  channel: 'instagram' | 'facebook' | 'twitter' | 'pinterest' | 'linkedin_profile' | 'linkedin_page';
+  channel: SocialPlatformId;
   channelName: string;
   channelIcon: string;
   channelColor: string;
@@ -30,8 +44,9 @@ export interface CalendarHoliday {
 }
 
 const STORAGE_POSTS_KEY = 'wargative_scheduled_posts';
+const STORAGE_CONNECTIONS_KEY = 'wargative_social_connections';
 const STORAGE_VER_KEY = 'wargative_planner_ver';
-const CURRENT_VERSION = '1.2';
+const CURRENT_VERSION = '1.3';
 
 // Preset holidays and events matching Canva Content Planner screenshot (Image 1)
 const DEFAULT_HOLIDAYS: CalendarHoliday[] = [
@@ -177,3 +192,104 @@ export function getHolidays(year: number, month: number): CalendarHoliday[] {
     return h;
   }).filter((h) => h.dateStr.startsWith(prefix));
 }
+
+// Default Social Connections
+const DEFAULT_CONNECTIONS: SocialAccountConnection[] = [
+  {
+    channelId: 'instagram',
+    name: 'Instagram Business',
+    handle: '@wargative.id',
+    connected: true,
+    avatarUrl: '',
+    connectedAt: Date.now() - 86400000 * 3
+  },
+  {
+    channelId: 'facebook',
+    name: 'Halaman Facebook',
+    handle: 'Wargative Official Page',
+    connected: true,
+    avatarUrl: '',
+    connectedAt: Date.now() - 86400000 * 5
+  },
+  {
+    channelId: 'tiktok',
+    name: 'TikTok',
+    handle: '@wargative.creatives',
+    connected: false
+  },
+  {
+    channelId: 'threads',
+    name: 'Threads',
+    handle: '@wargative.id',
+    connected: false
+  },
+  {
+    channelId: 'youtube',
+    name: 'YouTube',
+    handle: 'Wargative Studio Channel',
+    connected: false
+  }
+];
+
+export function getSocialConnections(): SocialAccountConnection[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_CONNECTIONS_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_CONNECTIONS_KEY, JSON.stringify(DEFAULT_CONNECTIONS));
+      return DEFAULT_CONNECTIONS;
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Merge with default channels in case new ones were added
+      const existingIds = new Set(parsed.map((p) => p.channelId));
+      let updated = [...parsed];
+      DEFAULT_CONNECTIONS.forEach((dc) => {
+        if (!existingIds.has(dc.channelId)) {
+          updated.push(dc);
+        }
+      });
+      return updated;
+    }
+    return DEFAULT_CONNECTIONS;
+  } catch (e) {
+    console.error('Failed to get social connections:', e);
+    return DEFAULT_CONNECTIONS;
+  }
+}
+
+export function getSocialConnection(channelId: SocialPlatformId): SocialAccountConnection | undefined {
+  const connections = getSocialConnections();
+  return connections.find((c) => c.channelId === channelId);
+}
+
+export function saveSocialConnection(connection: SocialAccountConnection): void {
+  try {
+    const connections = getSocialConnections();
+    const idx = connections.findIndex((c) => c.channelId === connection.channelId);
+    if (idx >= 0) {
+      connections[idx] = connection;
+    } else {
+      connections.push(connection);
+    }
+    localStorage.setItem(STORAGE_CONNECTIONS_KEY, JSON.stringify(connections));
+  } catch (e) {
+    console.error('Failed to save social connection:', e);
+  }
+}
+
+export function disconnectSocialConnection(channelId: SocialPlatformId): void {
+  try {
+    const connections = getSocialConnections();
+    const idx = connections.findIndex((c) => c.channelId === channelId);
+    if (idx >= 0) {
+      connections[idx].connected = false;
+      connections[idx].accessToken = undefined;
+      connections[idx].accountId = undefined;
+      connections[idx].apiKey = undefined;
+      localStorage.setItem(STORAGE_CONNECTIONS_KEY, JSON.stringify(connections));
+    }
+  } catch (e) {
+    console.error('Failed to disconnect social connection:', e);
+  }
+}
+

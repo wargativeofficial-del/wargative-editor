@@ -390,6 +390,153 @@
       </div>
     </div>
 
+    <!-- ====================================================================
+         MODAL: HUBUNGKAN AKUN MEDIA SOSIAL (Matching User Image 1)
+         ==================================================================== -->
+    <div class="modal-overlay" id="modalConnectSocialOverlay">
+      <div class="connect-social-modal-card">
+        <!-- Close Button (X) -->
+        <button class="btn-close-modal" id="btnCloseConnectSocialModal" type="button" title="Tutup modal">&times;</button>
+
+        <!-- Left Column: Visual Mockup Devices (Phone & Tablet) -->
+        <div class="connect-social-left-visual">
+          <div class="desk-illustration-wrapper">
+            <div class="coffee-cup-accent">
+              <div class="coffee-cup-inner"></div>
+            </div>
+
+            <!-- Tablet Device (Facebook Post) -->
+            <div class="tablet-device-mockup">
+              <div class="tablet-header-bar">
+                <div class="tablet-fb-icon">f</div>
+                <div class="tablet-search-bar"></div>
+              </div>
+              <div class="tablet-content-preview">
+                <div class="tablet-author-row">
+                  <div class="tablet-author-avatar">C</div>
+                  <div class="tablet-author-text">Collect Banking &bull; 2j</div>
+                </div>
+                <div class="tablet-post-image">
+                  <h5>Download the app</h5>
+                  <span>Banking made easy with Wargative</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phone Device (Instagram Post) -->
+            <div class="phone-device-mockup">
+              <div class="phone-notch"></div>
+              <div class="phone-ig-header">Instagram</div>
+              <div class="phone-ig-post">
+                <span>📸</span>
+                <h6>Wargative Studio</h6>
+                <p style="font-size: 8px; margin-top: 2px;">Automate your social feed</p>
+              </div>
+              <div class="phone-ig-actions">
+                <span>❤️</span>
+                <span>💬</span>
+                <span>📤</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Channels List & Connect Actions -->
+        <div class="connect-social-right-content">
+          <div>
+            <h2 class="connect-social-heading">Hubungkan akun media sosial saya</h2>
+            <p class="connect-social-subheading">
+              Pilih dan hubungkan akun Anda untuk otomatisasi jadwal dan publikasi konten langsung.
+            </p>
+
+            <div class="social-channels-connect-list" id="socialAccountsListContainer">
+              <!-- Rendered dynamically by planner.ts -->
+            </div>
+          </div>
+
+          <button class="btn-create-content-large" id="btnConnectModalCreateContent" type="button">
+            <span>✨</span>
+            <span>Buat Konten</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         SUB-MODAL: ATUR API KEY / TOKEN & AKUN (Config Drawer)
+         ==================================================================== -->
+    <div class="modal-overlay" id="modalChannelConfigOverlay" style="z-index: 10001;">
+      <div class="channel-config-dialog">
+        <button class="btn-close-modal" id="btnCloseChannelConfigModal" type="button" title="Tutup">&times;</button>
+
+        <div class="channel-config-header">
+          <div class="channel-config-icon" id="configChannelIcon" style="background: #e1306c; color: #fff;">📸</div>
+          <div class="channel-config-meta">
+            <h3 id="configChannelTitle">Hubungkan Instagram Business</h3>
+            <p id="configChannelSubtitle">Meta Graph API & Instagram Content Publishing</p>
+          </div>
+        </div>
+
+        <div class="config-form-group">
+          <label class="config-form-label" for="configChannelHandle">
+            <span>Username / Handle Akun</span>
+            <span style="font-weight: normal; color: #6b7280; font-size: 11px;">(Contoh: @wargative.id)</span>
+          </label>
+          <input
+            type="text"
+            class="config-input-field"
+            id="configChannelHandle"
+            placeholder="@nama_akun_anda"
+          />
+        </div>
+
+        <div class="config-form-group">
+          <label class="config-form-label" for="configChannelToken">
+            <span>Access Token / API Key</span>
+            <span style="font-weight: normal; color: #7047eb; font-size: 11px;">Wajib untuk Auto-Post</span>
+          </label>
+          <input
+            type="password"
+            class="config-input-field"
+            id="configChannelToken"
+            placeholder="Masukkan Access Token (EAA... / Bearer token)"
+          />
+        </div>
+
+        <div class="config-form-group" id="configAccountIdGroup">
+          <label class="config-form-label" for="configChannelAccountId">
+            <span id="configAccountIdLabel">Instagram Business Account ID</span>
+            <span style="font-weight: normal; color: #6b7280; font-size: 11px;">(ID Angka Meta)</span>
+          </label>
+          <input
+            type="text"
+            class="config-input-field"
+            id="configChannelAccountId"
+            placeholder="Contoh: 178414000000000"
+          />
+        </div>
+
+        <div class="config-guide-box" id="configGuideBox">
+          <strong>💡 Cara Cepat Mendapatkan Token Meta (Instagram / Facebook):</strong><br />
+          1. Buka <strong>developers.facebook.com</strong> &gt; Graph API Explorer.<br />
+          2. Pilih App Anda dan centang izin: <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>pages_show_list</code>.<br />
+          3. Generate Token, lalu salin Token dan Instagram Account ID ke sini.
+        </div>
+
+        <div class="config-dialog-actions">
+          <button class="btn-config-save" id="btnSaveChannelConfig" type="button">
+            🚀 Simpan & Hubungkan Akun
+          </button>
+          <button class="btn-config-demo" id="btnInstantConnectChannel" type="button">
+            ⚡ Hubungkan Otomatis (Mode Demo/Testing)
+          </button>
+          <button class="btn-config-cancel" id="btnCancelChannelConfig" type="button">
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Post Detail Dialog Overlay -->
     <div class="modal-overlay" id="postDetailDialogOverlay">
       <!-- Injected when post card is clicked -->
