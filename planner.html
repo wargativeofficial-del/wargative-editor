@@ -11,6 +11,31 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./src/planner/planner.css" />
+    <style>
+      /* Safeguards for icon SVGs */
+      svg {
+        max-width: 100%;
+        height: auto;
+        display: inline-block;
+      }
+      .nav-item svg {
+        width: 20px !important;
+        height: 20px !important;
+      }
+      .btn-create svg {
+        width: 22px !important;
+        height: 22px !important;
+      }
+      .btn-month-nav svg,
+      .filter-dropdown-btn svg,
+      .btn-add-schedule svg,
+      .selector-section-link svg,
+      .date-trigger-left svg {
+        width: 16px !important;
+        height: 16px !important;
+        flex-shrink: 0;
+      }
+    </style>
   </head>
   <body>
     <!-- ====================================================================
@@ -23,7 +48,7 @@
       <!-- Create Button -->
       <div class="create-btn-wrapper">
         <a href="./home.html" class="btn-create" title="Buat desain">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
           </svg>
         </a>
@@ -33,35 +58,35 @@
       <!-- Navigation Icons -->
       <nav class="sidebar-nav">
         <a href="./home.html" class="nav-item" title="Rumah / Home">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
           <span>Rumah</span>
         </a>
 
         <a href="./home.html#projects" class="nav-item" title="Proyek">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
           <span>Proyek</span>
         </a>
 
         <a href="./templates.html" class="nav-item" title="Templat">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
           </svg>
           <span>Templat</span>
         </a>
 
         <a href="./wargative-ai.html" class="nav-item" title="Wargative AI Studio">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <span>Canva AI</span>
         </a>
 
         <a href="./index.html" class="nav-item" title="Buka Editor Desain">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
           <span>Editor</span>
@@ -69,7 +94,7 @@
 
         <!-- Content Planner at the bottom (ACTIVE) -->
         <a href="./planner.html" class="nav-item active" title="Perencana Konten">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <span>Content P...</span>
@@ -84,155 +109,159 @@
     </aside>
 
     <!-- ====================================================================
-         PLANNER MAIN WRAPPER
+         MAIN PLANNER WORKSPACE
          ==================================================================== -->
-    <main class="planner-main-wrapper">
-      <!-- Planner Top Header Controls -->
-      <header class="planner-header">
-        <div class="planner-header-left">
-          <h1 class="planner-page-title">Perencana Konten</h1>
-          
-          <div class="calendar-nav-controls">
-            <button class="btn-today" id="btnToday">Hari ini</button>
-            <div class="nav-month-buttons">
-              <button class="btn-nav-arrow" id="btnPrevMonth" title="Bulan sebelumnya">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <main class="planner-workspace">
+      <div class="planner-container">
+        <!-- Header Section -->
+        <div class="planner-header-section">
+          <div class="planner-title-row">
+            <h1 class="planner-main-heading">Perencana Konten</h1>
+          </div>
+
+          <div class="planner-controls-bar">
+            <!-- Calendar Navigation -->
+            <div class="calendar-nav-group">
+              <button class="btn-today" id="btnToday" type="button">Hari ini</button>
+              <button class="btn-month-nav" id="btnPrevMonth" type="button" title="Bulan sebelumnya">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <button class="btn-nav-arrow" id="btnNextMonth" title="Bulan berikutnya">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button class="btn-month-nav" id="btnNextMonth" type="button" title="Bulan berikutnya">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
+              <h2 class="current-month-display" id="monthDisplayEl">Oktober 2026</h2>
             </div>
-            <h2 class="current-month-display" id="monthDisplayEl">Oktober 2026</h2>
+
+            <!-- Actions / Filters -->
+            <div class="planner-actions-group">
+              <button class="filter-dropdown-btn" type="button">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <span>Semua acara</span>
+                <span style="font-size: 11px; margin-left: 2px;">˅</span>
+              </button>
+
+              <button class="filter-dropdown-btn" type="button">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Semua kalender</span>
+                <span style="font-size: 11px; margin-left: 2px;">˅</span>
+              </button>
+
+              <!-- Main Add Schedule Button -->
+              <button class="btn-add-schedule" id="btnAddScheduleHeader" type="button">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Tambahkan yang baru</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="planner-header-right">
-          <!-- Filter Dropdowns matching Canva -->
-          <div class="planner-dropdown-pill">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            <span>Semua acara</span>
-            <span class="dropdown-chevron">˅</span>
-          </div>
-
-          <div class="planner-dropdown-pill">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span>Semua kalender</span>
-            <span class="dropdown-chevron">˅</span>
-          </div>
-
-          <!-- Main Add Schedule Button -->
-          <button class="btn-add-schedule-primary" id="btnAddScheduleHeader">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Tambahkan yang baru</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- Banner: Belajar dan bermain (Screenshot 1) -->
-      <section class="planner-learn-banner" id="learnBannerEl">
-        <div class="learn-banner-header" id="learnBannerToggle">
-          <span class="learn-banner-toggle-icon">˅</span>
-          <span class="learn-banner-title">Belajar dan bermain</span>
-        </div>
-
-        <div class="learn-banner-cards-scroll">
-          <!-- Card 1 -->
-          <div class="learn-card">
-            <div class="learn-card-thumb" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);">
-              <svg fill="currentColor" viewBox="0 0 24 24" width="22" height="22">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-              </svg>
-            </div>
-            <div class="learn-card-info">
-              <h4>Desain untuk Hari Senyum Sedunia</h4>
-              <p>Acara yang sedang tren</p>
+        <!-- Banner: Belajar dan bermain (Collapsible matching Canva Screenshot 1) -->
+        <section class="learn-play-banner" id="learnBannerEl">
+          <div class="learn-banner-header" id="learnBannerToggle">
+            <div class="learn-banner-title">
+              <span class="learn-chevron">˅</span>
+              <span>Belajar dan bermain</span>
             </div>
           </div>
 
-          <!-- Card 2: Tambahkan acara ke kalender -->
-          <div class="learn-card" id="bannerAddScheduleCard" style="cursor: pointer;">
-            <div class="learn-card-thumb" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
-              <svg fill="none" stroke="#ffffff" viewBox="0 0 24 24" width="22" height="22">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-              </svg>
+          <div class="learn-cards-scroll">
+            <!-- Card 1 -->
+            <div class="learn-card-item">
+              <div class="learn-card-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff;">
+                <span>😊</span>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Desain untuk Hari Senyum Sedunia</span>
+                <span class="learn-card-sub">Acara yang sedang tren</span>
+              </div>
             </div>
-            <div class="learn-card-info">
-              <h4>Tambahkan acara ke kalender</h4>
-              <p>Jadwalkan postingan sosial</p>
+
+            <!-- Card 2: Tambahkan acara ke kalender -->
+            <div class="learn-card-item" id="bannerAddScheduleCard">
+              <div class="learn-card-icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Tambahkan acara ke kalender</span>
+                <span class="learn-card-sub">Jadwalkan postingan sosial</span>
+              </div>
+            </div>
+
+            <!-- Card 3: Instagram -->
+            <div class="learn-card-item">
+              <div class="learn-card-icon" style="background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); color: #fff;">
+                <span>📸</span>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Publikasikan sebuah postingan Instagram</span>
+                <span class="learn-card-sub">Otomatisasi jadwal konten</span>
+              </div>
+            </div>
+
+            <!-- Card 4: Hubungkan sosial -->
+            <div class="learn-card-item">
+              <div class="learn-card-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff;">
+                <span>🔗</span>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Hubungkan akun media sosial</span>
+                <span class="learn-card-sub">Kelola multi platform</span>
+              </div>
+            </div>
+
+            <!-- Card 5: Unggahan media -->
+            <div class="learn-card-item">
+              <div class="learn-card-icon" style="background: linear-gradient(135deg, #a855f7, #7e22ce); color: #fff;">
+                <span>🎬</span>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Publikasikan sebuah unggahan</span>
+                <span class="learn-card-sub">Video, reels, dan feeds</span>
+              </div>
+            </div>
+
+            <!-- Card 6: Sekolah desain -->
+            <div class="learn-card-item">
+              <div class="learn-card-icon" style="background: linear-gradient(135deg, #38bdf8, #2563eb); color: #fff;">
+                <span>💎</span>
+              </div>
+              <div class="learn-card-text">
+                <span class="learn-card-main">Ikuti pelajaran media sosial</span>
+                <span class="learn-card-sub">Sekolah Desain Wargative</span>
+              </div>
             </div>
           </div>
+        </section>
 
-          <!-- Card 3: Instagram -->
-          <div class="learn-card">
-            <div class="learn-card-thumb" style="background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%);">
-              <span style="font-size: 16px;">📸</span>
-            </div>
-            <div class="learn-card-info">
-              <h4>Publikasikan sebuah postingan Instagram</h4>
-              <p>Otomatisasi jadwal konten</p>
-            </div>
+        <!-- Calendar Month Card -->
+        <div class="calendar-grid-card">
+          <!-- Weekdays Header (Sen, Sel, Rab, Kam, Jum, Sab, Min) -->
+          <div class="calendar-days-header">
+            <div class="day-header-cell">Sen</div>
+            <div class="day-header-cell">Sel</div>
+            <div class="day-header-cell">Rab</div>
+            <div class="day-header-cell">Kam</div>
+            <div class="day-header-cell">Jum</div>
+            <div class="day-header-cell">Sab</div>
+            <div class="day-header-cell">Min</div>
           </div>
 
-          <!-- Card 4: Hubungkan sosial -->
-          <div class="learn-card">
-            <div class="learn-card-thumb" style="background: linear-gradient(135deg, #10b981, #059669);">
-              <span style="font-size: 16px;">🔗</span>
-            </div>
-            <div class="learn-card-info">
-              <h4>Hubungkan akun media sosial</h4>
-              <p>Kelola multi platform</p>
-            </div>
+          <!-- 7-Column Calendar Month Grid Cells -->
+          <div class="calendar-days-grid" id="calendarGridContainer">
+            <!-- Rendered dynamically by planner.ts -->
           </div>
-
-          <!-- Card 5: Unggahan media -->
-          <div class="learn-card">
-            <div class="learn-card-thumb" style="background: linear-gradient(135deg, #a855f7, #7e22ce);">
-              <span style="font-size: 16px;">🎬</span>
-            </div>
-            <div class="learn-card-info">
-              <h4>Publikasikan sebuah unggahan di media sosial</h4>
-              <p>Video, reels, dan stories</p>
-            </div>
-          </div>
-
-          <!-- Card 6: Sekolah desain -->
-          <div class="learn-card">
-            <div class="learn-card-thumb" style="background: linear-gradient(135deg, #38bdf8, #2563eb);">
-              <span style="font-size: 16px;">💎</span>
-            </div>
-            <div class="learn-card-info">
-              <h4>Ikuti pelajaran media sosial</h4>
-              <p>Sekolah Desain Wargative</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Calendar Table / Weekdays Header -->
-      <div class="planner-calendar-container">
-        <div class="calendar-weekdays-bar">
-          <div class="weekday-name">Senin</div>
-          <div class="weekday-name">Selasa</div>
-          <div class="weekday-name">Rabu</div>
-          <div class="weekday-name">Kamis</div>
-          <div class="weekday-name">Jumat</div>
-          <div class="weekday-name">Sabtu</div>
-          <div class="weekday-name">Minggu</div>
-        </div>
-
-        <!-- 7-Column Calendar Month Grid -->
-        <div class="calendar-grid-cells" id="calendarGridContainer">
-          <!-- Dynamically populated by planner.ts -->
         </div>
       </div>
     </main>
@@ -240,158 +269,153 @@
     <!-- ====================================================================
          SCHEDULE POST MODAL (Canva Exact 2-Column Workflow)
          ==================================================================== -->
-    <div class="modal-schedule-overlay" id="modalScheduleOverlay">
-      <div class="modal-schedule-box">
+    <div class="modal-overlay" id="modalScheduleOverlay">
+      <div class="modal-content-card">
         <!-- Close Button (X) -->
-        <button class="btn-close-modal-top" id="btnCloseModal" title="Tutup modal">&times;</button>
+        <button class="btn-close-modal" id="btnCloseModal" type="button" title="Tutup modal">&times;</button>
 
         <!-- Left Column: Project & Template Selection -->
-        <div class="modal-col-left">
+        <div class="modal-left-column">
           <!-- Section 1: Terbaru (Projects) -->
-          <div class="modal-section-header">
-            <h3 class="modal-section-title">Terbaru</h3>
-            <a href="./home.html#projects" class="modal-section-action-link">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="selector-section-header">
+            <h3 class="selector-section-title">Terbaru</h3>
+            <a href="./home.html#projects" class="selector-section-link">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
               <span>Proyek Anda</span>
             </a>
           </div>
 
-          <div class="projects-scroll-row" id="projectsScrollContainer">
+          <div class="horizontal-projects-scroll" id="projectsScrollContainer">
             <!-- Dynamically populated from projectStore -->
           </div>
 
           <!-- Section 2: Template -->
-          <div class="modal-section-header" style="margin-top: 14px;">
-            <h3 class="modal-section-title">Template</h3>
-            <a href="./templates.html" class="modal-section-action-link">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="selector-section-header" style="margin-top: 10px;">
+            <h3 class="selector-section-title">Template</h3>
+            <a href="./templates.html" class="selector-section-link">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
               <span>Buat desain</span>
             </a>
           </div>
 
-          <div class="templates-scroll-row" id="templatesScrollContainer">
+          <div class="horizontal-templates-scroll" id="templatesScrollContainer">
             <!-- Dynamically populated with curated templates -->
           </div>
         </div>
 
         <!-- Right Column: Switchable Views -->
-        <div class="modal-col-right">
+        <div class="modal-right-column">
           <!-- View 1: Main Form (Screenshot 2 & 3) -->
-          <div class="modal-view-panel" id="viewMainForm">
-            <h3 class="modal-right-title">Konten baru</h3>
+          <div class="form-view-panel" id="viewMainForm">
+            <h3 class="form-panel-title">Konten baru</h3>
 
             <!-- Selected Project Summary Box -->
-            <div class="selected-summary-box">
+            <div class="selected-project-summary-box">
               <div class="summary-box-thumb" id="summaryBoxThumb">🎨</div>
               <div class="summary-box-info">
-                <h4 id="summaryBoxTitle">Pilih desain dari daftar</h4>
-                <p id="summaryBoxMeta">Instagram Post (4:5)</p>
+                <div class="summary-box-title" id="summaryBoxTitle">Pilih desain dari daftar</div>
+                <div class="summary-box-meta" id="summaryBoxMeta">Instagram Post (4:5)</div>
               </div>
             </div>
 
             <!-- Date & Time Button Trigger -->
-            <button class="form-picker-trigger-btn" id="dateTimeTriggerBtn">
-              <div class="trigger-left">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="date-time-trigger-btn" id="dateTimeTriggerBtn">
+              <div class="date-trigger-left">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span id="dateTimeDisplaySpan">Jumat, 2 Okt, 14.40</span>
               </div>
-              <span class="trigger-more-dots">•••</span>
-            </button>
-
-            <!-- Channel Selector Button Trigger -->
-            <button class="form-picker-trigger-btn" id="channelTriggerBtn">
-              <div class="trigger-left">
-                <span class="trigger-plus-icon">+</span>
-                <span id="channelDisplaySpan">Pilih saluran</span>
-              </div>
-              <span class="trigger-arrow">&gt;</span>
-            </button>
-
-            <!-- Caption Textarea -->
-            <div class="form-field-group">
-              <textarea
-                class="form-caption-textarea"
-                id="captionInput"
-                placeholder="Tulis keterangan ..."
-                rows="4"
-              ></textarea>
+              <span class="date-trigger-dots">•••</span>
             </div>
 
+            <!-- Channel Selector Button Trigger -->
+            <div class="channel-trigger-btn" id="channelTriggerBtn">
+              <div class="channel-trigger-left">
+                <span style="font-weight: 700; font-size: 16px;">+</span>
+                <span id="channelDisplaySpan">Pilih saluran</span>
+              </div>
+              <span style="color: #9ca3af; font-size: 14px;">&gt;</span>
+            </div>
+
+            <!-- Caption Textarea -->
+            <textarea
+              class="caption-textarea"
+              id="captionInput"
+              placeholder="Tulis keterangan ..."
+            ></textarea>
+
             <!-- Action Buttons -->
-            <div class="form-actions-stack">
-              <button class="btn-schedule-submit" id="btnSubmitSchedule">
-                <span class="crown-icon">👑</span>
+            <div class="modal-actions-container">
+              <button class="btn-submit-schedule" id="btnSubmitSchedule" type="button">
+                <span>👑</span>
                 <span>Jadwalkan</span>
               </button>
-              <button class="btn-publish-now-outline" id="btnPublishNow">
+              <button class="btn-publish-now" id="btnPublishNow" type="button">
                 Publikasikan sekarang
               </button>
             </div>
           </div>
 
           <!-- View 2: Mini Calendar Date & Time Picker (Screenshot 4) -->
-          <div class="modal-view-panel" id="viewSchedulePicker" style="display: none;">
-            <div class="view-panel-header">
-              <button class="btn-back-link" id="btnBackFromMiniCal">
-                <span class="back-arrow">&lt;</span>
-                <span>Jadwalkan</span>
-              </button>
+          <div class="form-view-panel" id="viewSchedulePicker" style="display: none;">
+            <div class="view-back-header" id="btnBackFromMiniCal">
+              <span>&lt;</span>
+              <span>Jadwalkan</span>
             </div>
 
-            <div class="mini-cal-controls">
-              <button class="btn-mini-cal-arrow" id="miniCalPrevBtn">&lt;</button>
-              <span class="mini-cal-month-title" id="miniCalMonthDisplay">Oktober 2026</span>
-              <button class="btn-mini-cal-arrow" id="miniCalNextBtn">&gt;</button>
-            </div>
+            <div class="mini-calendar-container">
+              <div class="mini-cal-header">
+                <button class="btn-month-nav" id="miniCalPrevBtn" type="button">&lt;</button>
+                <span id="miniCalMonthDisplay" style="font-weight: 700;">Oktober 2026</span>
+                <button class="btn-month-nav" id="miniCalNextBtn" type="button">&gt;</button>
+              </div>
 
-            <!-- Mini Calendar Weekdays -->
-            <div class="mini-cal-weekdays">
-              <span>Sen</span>
-              <span>Sel</span>
-              <span>Rab</span>
-              <span>Kam</span>
-              <span>Jum</span>
-              <span>Sab</span>
-              <span>Min</span>
-            </div>
+              <!-- Mini Calendar Weekdays -->
+              <div class="mini-cal-days-row">
+                <span>Sen</span>
+                <span>Sel</span>
+                <span>Rab</span>
+                <span>Kam</span>
+                <span>Jum</span>
+                <span>Sab</span>
+                <span>Min</span>
+              </div>
 
-            <!-- Mini Calendar Grid -->
-            <div class="mini-cal-grid" id="miniCalGrid">
-              <!-- Rendered dynamically -->
+              <!-- Mini Calendar Grid -->
+              <div class="mini-cal-grid" id="miniCalGrid">
+                <!-- Rendered dynamically -->
+              </div>
             </div>
 
             <!-- Time Input with UTC -->
             <div class="time-picker-row">
               <input
                 type="text"
-                class="mini-time-input"
+                class="time-input-field"
                 id="miniTimeInput"
                 value="14:40"
-                placeholder="02:40 PM"
+                placeholder="14:40"
               />
-              <span class="time-tz-badge">UTC +7</span>
+              <span class="time-timezone-badge">UTC +7</span>
             </div>
 
             <!-- Done Button -->
-            <button class="btn-mini-cal-done" id="btnDoneMiniCal">Selesai</button>
+            <button class="btn-done-schedule" id="btnDoneMiniCal" type="button">Selesai</button>
           </div>
 
           <!-- View 3: Social Channel Picker (Screenshot 5) -->
-          <div class="modal-view-panel" id="viewChannelPicker" style="display: none;">
-            <div class="view-panel-header">
-              <button class="btn-back-link" id="btnBackFromChannels">
-                <span class="back-arrow">&lt;</span>
-                <span>Pilih saluran</span>
-              </button>
+          <div class="form-view-panel" id="viewChannelPicker" style="display: none;">
+            <div class="view-back-header" id="btnBackFromChannels">
+              <span>&lt;</span>
+              <span>Pilih saluran</span>
             </div>
 
-            <div class="channel-options-list" id="channelListOptionsContainer">
+            <div class="channel-list-container" id="channelListOptionsContainer">
               <!-- Rendered dynamically -->
             </div>
           </div>
@@ -400,7 +424,7 @@
     </div>
 
     <!-- Post Detail Dialog Overlay -->
-    <div class="post-detail-dialog-overlay" id="postDetailDialogOverlay">
+    <div class="modal-overlay" id="postDetailDialogOverlay">
       <!-- Injected when post card is clicked -->
     </div>
 
