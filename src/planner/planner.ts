@@ -1697,12 +1697,14 @@ class WargativeContentPlanner {
           engine = await CreativeEngine.init({
             license: 'vERESgSXbYj5Rs-FF4DzkMvhdQLh0Mxe6AD8V-doP6wqe_gmYmx_oUKqIlMkwpMu'
           });
-          await engine.scene.loadFromString(sceneString);
-          const scene = engine.scene.get();
-          if (!scene) {
+          const sceneId = await engine.scene.loadFromString(sceneString);
+          const activeScene = sceneId ?? engine.scene.get();
+          if (activeScene == null) {
             throw new Error('Scene tidak ditemukan di memori editor.');
           }
-          const blob = await engine.block.export(scene, { mimeType: 'image/jpeg' });
+          const pages = engine.scene.getPages();
+          const targetBlock = pages.length > 0 ? pages[0] : activeScene;
+          const blob = await engine.block.export(targetBlock, { mimeType: 'image/jpeg' });
           if (blob && blob.size > 0) {
             return blob;
           }
