@@ -19,6 +19,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticateRequest } from '../_lib/authMiddleware.js';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
 
+/**
+ * Strict ISO 8601 regex:
+ * Format: YYYY-MM-DDTHH:mm:ss(.sss)?(Z|[+-]HH:mm)
+ * Example: 2026-10-05T14:30:00Z, 2026-10-05T14:30:00.000Z, 2026-10-05T14:30:00+07:00, 2026-10-05T14:30:00-05:00
+ */
+const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Authenticate user from session JWT
   const user = await authenticateRequest(req, res);
@@ -187,11 +194,19 @@ async function handlePost(
     });
   }
 
-  const parsedDate = new Date(scheduledAt);
+  const trimmedPostDate = scheduledAt.trim();
+  if (!ISO_8601_REGEX.test(trimmedPostDate)) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Format scheduledAt tidak valid. Gunakan format ISO 8601 resmi (contoh: 2026-10-05T14:30:00Z atau 2026-10-05T14:30:00+07:00).'
+    });
+  }
+
+  const parsedDate = new Date(trimmedPostDate);
   if (isNaN(parsedDate.getTime())) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Format scheduledAt tidak valid. Gunakan format ISO 8601.'
+      message: 'Nilai tanggal atau waktu pada parameter scheduledAt tidak valid.'
     });
   }
 
@@ -285,8 +300,12 @@ async function handlePost(
 
 /**
  * PATCH /api/planner/posts
- * Updates scheduled post status during safe instant publishing (Phase 4A)
- * Supports atomic claim to 'publishing', completion to 'published', and revert to 'scheduled'
+ * Updates scheduled post content (caption, scheduledAt) or status (Phase 4A/4B)
+ * Supports:
+ * 1. Reschedule (scheduledAt) and Edit Caption (caption) for 'scheduled' posts
+ * 2. Atomic claim to 'publishing' for Instant Publish
+ * 3. Completion to 'published' with publishedPostId
+ * 4. Revert to 'scheduled' if instant publishing fails
  */
 async function handlePatch(
   req: VercelRequest,
@@ -294,7 +313,7 @@ async function handlePatch(
   userId: string,
   supabase: ReturnType<typeof getSupabaseAdmin>
 ) {
-  const { id, status, publishedPostId } = req.body || {};
+  const { id, status, publishedPostId, caption, scheduledAt } = req.body || {};
 
   if (!id || typeof id !== 'string' || id.trim().length === 0) {
     return res.status(400).json({
@@ -304,15 +323,136 @@ async function handlePatch(
   }
 
   const cleanId = id.trim();
+  const isContentUpdate = caption !== undefined || scheduledAt !== undefined;
 
-  if (!status || !['publishing', 'published', 'scheduled'].includes(status)) {
+  // Validation for content update (reschedule / edit caption)
+  let parsedScheduledDate: Date | null = null;
+  if (scheduledAt !== undefined) {
+    if (typeof scheduledAt !== 'string' || scheduledAt.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Parameter scheduledAt harus berupa string tanggal dan waktu ISO yang valid.'
+      });
+    }
+
+    const trimmedDate = scheduledAt.trim();
+    if (!ISO_8601_REGEX.test(trimmedDate)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Format parameter scheduledAt tidak valid. Gunakan format ISO 8601 resmi (contoh: 2026-10-05T14:30:00Z atau 2026-10-05T14:30:00+07:00).'
+      });
+    }
+
+    const d = new Date(trimmedDate);
+    if (isNaN(d.getTime())) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Nilai tanggal atau waktu pada parameter scheduledAt tidak valid.'
+      });
+    }
+
+    if (d.getTime() <= Date.now()) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Waktu jadwal (scheduledAt) harus berada di masa depan.'
+      });
+    }
+
+    parsedScheduledDate = d;
+  }
+
+  if (caption !== undefined && typeof caption !== 'string') {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Parameter status tidak valid. Status yang diizinkan: publishing, published, scheduled.'
+      message: 'Parameter caption harus berupa teks string.'
     });
   }
 
+  // If not a content update, validate status parameter for existing status transitions
+  if (!isContentUpdate) {
+    if (!status || !['publishing', 'published', 'scheduled'].includes(status)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Parameter status tidak valid. Status yang diizinkan: publishing, published, scheduled.'
+      });
+    }
+  }
+
   try {
+    // Branch A: Reschedule or Edit Caption (Phase 4B)
+    // Strictly allowed ONLY when current record status is 'scheduled'
+    if (isContentUpdate) {
+      const updates: Record<string, any> = {
+        updated_at: new Date().toISOString()
+      };
+      if (caption !== undefined) {
+        updates.caption = caption.trim();
+      }
+      if (parsedScheduledDate) {
+        updates.scheduled_at = parsedScheduledDate.toISOString();
+      }
+
+      const { data: updatedPost, error: updateError } = await supabase
+        .from('scheduled_posts')
+        .update(updates)
+        .eq('id', cleanId)
+        .eq('user_id', userId)
+        .eq('status', 'scheduled')
+        .select(`
+          id,
+          user_id,
+          connection_id,
+          platform,
+          caption,
+          media_url,
+          scheduled_at,
+          status,
+          published_post_id,
+          error_message,
+          created_at,
+          updated_at
+        `)
+        .maybeSingle();
+
+      if (updateError) {
+        console.error('[API /planner/posts] Database update error in PATCH (content/schedule):', updateError);
+        return res.status(500).json({
+          error: 'Database Error',
+          message: 'Gagal memperbarui postingan terjadwal.',
+          detail: updateError.message
+        });
+      }
+
+      if (!updatedPost) {
+        // Inspect current post status to provide clear, actionable conflict feedback
+        const { data: existingPost } = await supabase
+          .from('scheduled_posts')
+          .select('id, status')
+          .eq('id', cleanId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!existingPost) {
+          return res.status(404).json({
+            error: 'Not Found',
+            message: 'Postingan terjadwal tidak ditemukan atau bukan milik akun Anda.'
+          });
+        }
+
+        return res.status(409).json({
+          error: 'Conflict',
+          message: `Postingan tidak dapat diedit atau dijadwalkan ulang karena status saat ini adalah "${existingPost.status}". Hanya postingan berstatus terjadwal yang dapat diedit.`
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Postingan terjadwal berhasil diperbarui.',
+        post: updatedPost
+      });
+    }
+
+    // Branch B: Status Transitions (Phase 4A Backward Compatibility)
     // 1. Transition to 'publishing' (Atomic claim for Instant Publish)
     if (status === 'publishing') {
       const { data: claimedPost, error: claimError } = await supabase
