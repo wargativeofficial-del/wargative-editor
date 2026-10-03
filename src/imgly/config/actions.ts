@@ -38,6 +38,63 @@
  */
 
 import type CreativeEditorSDK from '@cesdk/cesdk-js';
+import type { AssetDefinition } from '@cesdk/engine';
+import { getAuthHeader } from '../../common/authClient';
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
+function getImageDimensions(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      resolve({ width: 0, height: 0 });
+    };
+    img.src = src;
+  });
+}
+
+async function convertFileToPngDataUrl(file: File): Promise<{ dataUrl: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const tempUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(tempUrl);
+          reject(new Error('Gagal menginisialisasi canvas untuk konversi gambar.'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        URL.revokeObjectURL(tempUrl);
+        resolve({ dataUrl, width: img.naturalWidth, height: img.naturalHeight });
+      } catch (e) {
+        URL.revokeObjectURL(tempUrl);
+        reject(e);
+      }
+    };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(tempUrl);
+      reject(err);
+    };
+    img.src = tempUrl;
+  });
+}
+
 
 /**
  * Register actions and configure the navigation bar.
@@ -130,10 +187,72 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
   // #endregion
 
   // #region Upload File Action
-  // Handle local file uploads by creating blob URLs
-  // This integrates with CE.SDK's upload asset sources
-  cesdk.actions.register('uploadFile', (file, _onProgress, context) => {
-    return cesdk.utils.localUpload(file, context);
+  // Handle local file uploads by persisting them permanently to Supabase Storage
+  // Returns AssetDefinition with permanent HTTPS URL so the scene never stores temporary blob: URLs
+  cesdk.actions.register('uploadFile', async (file, onProgress) => {
+    const authHeaders = await getAuthHeader();
+    if (!authHeaders.Authorization) {
+      throw new Error('Sesi login diperlukan untuk mengunggah gambar. Silakan login ke akun Wargative terlebih dahulu.');
+    }
+
+    let mimeType = (file.type || 'image/jpeg').toLowerCase();
+    let base64Data: string;
+    let width = 0;
+    let height = 0;
+
+    // Supabase media upload supports image/jpeg, image/jpg, and image/png
+    if (mimeType !== 'image/jpeg' && mimeType !== 'image/jpg' && mimeType !== 'image/png') {
+      const converted = await convertFileToPngDataUrl(file);
+      base64Data = converted.dataUrl;
+      mimeType = 'image/png';
+      width = converted.width;
+      height = converted.height;
+    } else {
+      base64Data = await readFileAsDataUrl(file);
+      const dims = await getImageDimensions(base64Data);
+      width = dims.width;
+      height = dims.height;
+    }
+
+    if (onProgress) onProgress(30);
+
+    const res = await fetch('/api/media/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders
+      },
+      body: JSON.stringify({
+        imageBase64: base64Data,
+        mimeType: mimeType === 'image/jpg' ? 'image/jpeg' : mimeType
+      })
+    });
+
+    if (onProgress) onProgress(80);
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success || !data?.url) {
+      const errMsg = data?.message || data?.error || 'Gagal mengunggah gambar ke cloud storage.';
+      throw new Error(errMsg);
+    }
+
+    if (onProgress) onProgress(100);
+
+    const permanentHttpsUrl = data.url as string;
+    const assetId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    const asset: AssetDefinition = {
+      id: assetId,
+      meta: {
+        uri: permanentHttpsUrl,
+        thumbUri: permanentHttpsUrl,
+        mimeType,
+        width: width || undefined,
+        height: height || undefined
+      }
+    };
+
+    return asset;
   });
   // #endregion
 

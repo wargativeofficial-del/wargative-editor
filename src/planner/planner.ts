@@ -1748,7 +1748,12 @@ class WargativeContentPlanner {
             ? cesdkErr
             : (cesdkErr?.message || cesdkErr?.reason || cesdkErr?.error || (cesdkErr ? String(cesdkErr) : 'Export error'));
           const errName = cesdkErr?.name && cesdkErr.name !== 'Error' ? ` [${cesdkErr.name}]` : '';
-          throw new Error(`Gagal mengekspor desain dari editor. Penerbitan dibatalkan agar tidak mengunggah konten yang salah ke Instagram. (${errDetail}${errName})`);
+
+          if (typeof errDetail === 'string' && (errDetail.includes('FILE_FETCH_FAILED') || errDetail.includes('blob:'))) {
+            throw new Error('Proyek ini memiliki gambar yang diunggah sebelum penyimpanan cloud aktif dan sesi lokalnya telah kedaluwarsa. Demi menjaga keaslian desain Anda, silakan buka proyek di Editor, ganti gambar tersebut, lalu terbitkan kembali.');
+          }
+
+          throw new Error(`Gagal mengekspor desain dari editor. Penerbitan dibatalkan agar tidak mengunggah konten yang tidak sesuai ke media sosial. (${errDetail}${errName})`);
         } finally {
           if (engine) {
             try { engine.dispose(); } catch {}

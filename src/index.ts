@@ -133,6 +133,47 @@ CreativeEditorSDK.create('#cesdk_container', config)
     let isSaving = false;
     let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Informative notification for legacy projects containing local blob: images
+    const showLegacyBlobNotification = () => {
+      if (document.getElementById('wargative-legacy-blob-alert')) return;
+      const alertEl = document.createElement('div');
+      alertEl.id = 'wargative-legacy-blob-alert';
+      alertEl.style.cssText = `
+        position: fixed;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 99998;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #fffbeb;
+        border: 1px solid #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 10px 18px;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        color: #92400e;
+        max-width: 640px;
+        box-sizing: border-box;
+      `;
+      alertEl.innerHTML = `
+        <span style="font-size: 18px; line-height: 1;">⚠️</span>
+        <div style="flex: 1; line-height: 1.4;">
+          <strong>Pembaruan Gambar Diperlukan:</strong> Proyek ini memiliki gambar yang diunggah sebelum penyimpanan cloud aktif dan sesi lokalnya telah kedaluwarsa. Agar proyek dapat dipublikasikan ke media sosial, silakan klik gambar tersebut dan pilih <em>Ganti Gambar</em> untuk menyimpannya secara permanen ke cloud.
+        </div>
+        <button id="btnCloseBlobAlert" type="button" style="background: none; border: none; font-size: 20px; color: #b45309; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
+      `;
+      document.body.appendChild(alertEl);
+
+      const closeBtn = alertEl.querySelector('#btnCloseBlobAlert');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => alertEl.remove());
+      }
+    };
+
     const performAutoSave = async () => {
       if (isSaving) return;
       isSaving = true;
@@ -146,6 +187,12 @@ CreativeEditorSDK.create('#cesdk_container', config)
       try {
         const sceneString = await cesdk.engine.scene.saveToString();
         saveProjectScene(projectId!, sceneString);
+
+        // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
+        if (!sceneString.includes('blob:')) {
+          const alertEl = document.getElementById('wargative-legacy-blob-alert');
+          if (alertEl) alertEl.remove();
+        }
 
         // Update project store timestamp
         const currentMeta = getProject(projectId!) || projectMeta;
@@ -403,6 +450,11 @@ CreativeEditorSDK.create('#cesdk_container', config)
         console.log(`[Wargative AutoSave] Loading saved scene for ${projectId}`);
         await cesdk.engine.scene.loadFromString(savedScene);
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+        // Inform user if this legacy project still contains expired local blob: assets
+        if (savedScene.includes('blob:')) {
+          showLegacyBlobNotification();
+        }
 
         // CRITICAL FIX: If aiTransferData is present, sync any updated text from AI Studio into scene blocks!
         if (aiTransferData) {
