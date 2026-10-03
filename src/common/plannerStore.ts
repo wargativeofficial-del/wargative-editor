@@ -23,15 +23,19 @@ export interface SocialAccountConnection {
   connectedAt?: number;
 }
 
+export type ScheduledPostStatus = 'scheduled' | 'publishing' | 'published' | 'failed';
+
 export interface ScheduledPost {
   id: string;
   projectId?: string;
+  connectionId?: string;
   projectTitle: string;
   projectFormat?: string;
   thumbnailColor?: string;
   thumbnailIcon?: string;
   previewType?: string;
   imageUrl?: string;
+  mediaUrls?: string[];
   channel: SocialPlatformId;
   channelName: string;
   channelIcon: string;
@@ -39,7 +43,9 @@ export interface ScheduledPost {
   dateStr: string; // Format: YYYY-MM-DD, e.g. "2026-10-02"
   timeStr: string; // Format: HH:MM, e.g. "14:40"
   caption: string;
-  status: 'scheduled' | 'published';
+  status: ScheduledPostStatus;
+  errorMessage?: string | null;
+  publishedPostId?: string | null;
   createdAt: number;
 }
 

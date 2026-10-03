@@ -32,13 +32,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return handleGet(req, res, user.id, supabase);
     case 'POST':
       return handlePost(req, res, user.id, supabase);
+    case 'PATCH':
+      return handlePatch(req, res, user.id, supabase);
     case 'DELETE':
       return handleDelete(req, res, user.id, supabase);
     default:
-      res.setHeader('Allow', 'GET, POST, DELETE');
+      res.setHeader('Allow', 'GET, POST, PATCH, DELETE');
       return res.status(405).json({
         error: 'Method Not Allowed',
-        message: `Metode ${req.method} tidak diizinkan pada endpoint ini. Gunakan GET, POST, atau DELETE.`
+        message: `Metode ${req.method} tidak diizinkan pada endpoint ini. Gunakan GET, POST, PATCH, atau DELETE.`
       });
   }
 }
@@ -282,8 +284,154 @@ async function handlePost(
 }
 
 /**
+ * PATCH /api/planner/posts
+ * Updates scheduled post status during safe instant publishing (Phase 4A)
+ * Supports atomic claim to 'publishing', completion to 'published', and revert to 'scheduled'
+ */
+async function handlePatch(
+  req: VercelRequest,
+  res: VercelResponse,
+  userId: string,
+  supabase: ReturnType<typeof getSupabaseAdmin>
+) {
+  const { id, status, publishedPostId } = req.body || {};
+
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Parameter id postingan terjadwal wajib disertakan.'
+    });
+  }
+
+  const cleanId = id.trim();
+
+  if (!status || !['publishing', 'published', 'scheduled'].includes(status)) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Parameter status tidak valid. Status yang diizinkan: publishing, published, scheduled.'
+    });
+  }
+
+  try {
+    // 1. Transition to 'publishing' (Atomic claim for Instant Publish)
+    if (status === 'publishing') {
+      const { data: claimedPost, error: claimError } = await supabase
+        .from('scheduled_posts')
+        .update({
+          status: 'publishing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cleanId)
+        .eq('user_id', userId)
+        .eq('status', 'scheduled')
+        .select('id, status')
+        .maybeSingle();
+
+      if (claimError) {
+        console.error('[API /planner/posts] Database claim error in PATCH:', claimError);
+        return res.status(500).json({
+          error: 'Database Error',
+          message: 'Gagal memperbarui status postingan ke antrean publikasi.',
+          detail: claimError.message
+        });
+      }
+
+      if (!claimedPost) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'Postingan tidak dapat dipublikasikan karena sedang diproses oleh sistem atau sudah tidak berstatus terjadwal.'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Postingan berhasil diklaim untuk publikasi.',
+        post: claimedPost
+      });
+    }
+
+    // 2. Transition to 'published' (Instant Publish succeeded)
+    if (status === 'published') {
+      const { data: publishedPost, error: pubError } = await supabase
+        .from('scheduled_posts')
+        .update({
+          status: 'published',
+          published_post_id: typeof publishedPostId === 'string' ? publishedPostId.trim() : null,
+          error_message: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cleanId)
+        .eq('user_id', userId)
+        .in('status', ['publishing', 'scheduled'])
+        .select('id, status, published_post_id')
+        .maybeSingle();
+
+      if (pubError) {
+        console.error('[API /planner/posts] Database update error in PATCH (published):', pubError);
+        return res.status(500).json({
+          error: 'Database Error',
+          message: 'Gagal memperbarui status postingan ke published.',
+          detail: pubError.message
+        });
+      }
+
+      if (!publishedPost) {
+        return res.status(404).json({
+          error: 'Not Found',
+          message: 'Postingan tidak ditemukan atau bukan milik akun Anda.'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Status postingan berhasil diubah menjadi published.',
+        post: publishedPost
+      });
+    }
+
+    // 3. Transition to 'scheduled' (Instant Publish failed, revert claim)
+    if (status === 'scheduled') {
+      const { data: revertedPost, error: revError } = await supabase
+        .from('scheduled_posts')
+        .update({
+          status: 'scheduled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cleanId)
+        .eq('user_id', userId)
+        .eq('status', 'publishing')
+        .select('id, status')
+        .maybeSingle();
+
+      if (revError) {
+        console.error('[API /planner/posts] Database update error in PATCH (scheduled revert):', revError);
+        return res.status(500).json({
+          error: 'Database Error',
+          message: 'Gagal mengembalikan status postingan ke scheduled.',
+          detail: revError.message
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Status postingan dikembalikan ke scheduled.',
+        post: revertedPost
+      });
+    }
+  } catch (err: any) {
+    console.error('[API /planner/posts] Server exception in PATCH:', err);
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Terjadi kesalahan pada server saat memperbarui postingan.',
+      detail: err?.message
+    });
+  }
+}
+
+/**
  * DELETE /api/planner/posts?id=...
  * Deletes a scheduled post owned by the authenticated user
+ * Strictly protected against deleting posts that are 'publishing' or 'published'
  */
 async function handleDelete(
   req: VercelRequest,
@@ -300,13 +448,56 @@ async function handleDelete(
     });
   }
 
+  const cleanId = postId.trim();
+
   try {
-    // Delete only if post belongs to authenticated user
+    // 1. Verify existence and current status
+    const { data: existingPost, error: fetchError } = await supabase
+      .from('scheduled_posts')
+      .select('id, user_id, status')
+      .eq('id', cleanId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[API /planner/posts] Database check error:', fetchError);
+      return res.status(500).json({
+        error: 'Database Error',
+        message: 'Gagal memeriksa status postingan.',
+        detail: fetchError.message
+      });
+    }
+
+    if (!existingPost) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Postingan terjadwal tidak ditemukan atau bukan milik akun Anda.'
+      });
+    }
+
+    // 2. Reject deletion if currently publishing
+    if (existingPost.status === 'publishing') {
+      return res.status(409).json({
+        error: 'Conflict',
+        message: 'Postingan sedang dalam proses publikasi oleh sistem dan tidak dapat dihapus.'
+      });
+    }
+
+    // 3. Reject deletion if already published
+    if (existingPost.status === 'published') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Postingan yang sudah berhasil tayang tidak dapat dihapus melalui fitur hapus jadwal.'
+      });
+    }
+
+    // 4. Atomic delete: only delete if status is still 'scheduled' or 'failed'
     const { data: deletedPost, error: deleteError } = await supabase
       .from('scheduled_posts')
       .delete()
-      .eq('id', postId.trim())
+      .eq('id', cleanId)
       .eq('user_id', userId)
+      .in('status', ['scheduled', 'failed'])
       .select('id, user_id, status')
       .maybeSingle();
 
@@ -320,9 +511,9 @@ async function handleDelete(
     }
 
     if (!deletedPost) {
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Postingan terjadwal tidak ditemukan atau bukan milik akun Anda.'
+      return res.status(409).json({
+        error: 'Conflict',
+        message: 'Status postingan berubah saat hendak dihapus. Postingan mungkin sedang diproses oleh sistem.'
       });
     }
 

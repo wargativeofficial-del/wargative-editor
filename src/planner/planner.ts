@@ -671,15 +671,30 @@ class WargativeContentPlanner {
     matchingPosts.forEach((post) => {
       const displayTime = this.formatTimeString(post.timeStr);
       const postCard = document.createElement('div');
-      postCard.className = 'scheduled-post-card';
+      postCard.className = `scheduled-post-card ${post.status === 'failed' ? 'post-card-failed' : ''}`;
       postCard.title = `${displayTime} • ${post.projectTitle} (${post.channelName})`;
+
+      let statusBadge = '⏰ Terjadwal';
+      let statusColor = '#8b5cf6';
+      if (post.status === 'published') {
+        statusBadge = '✅ Tayang';
+        statusColor = '#10b981';
+      } else if (post.status === 'failed') {
+        statusBadge = '❌ Gagal';
+        statusColor = '#ef4444';
+        postCard.style.borderColor = '#fca5a5';
+        postCard.style.backgroundColor = '#fff8f8';
+      } else if (post.status === 'publishing') {
+        statusBadge = '⏳ Menerbitkan...';
+        statusColor = '#f59e0b';
+      }
 
       postCard.innerHTML = `
         <div class="post-card-thumb" style="background: ${post.thumbnailColor || '#7047eb'};">
           ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${post.projectTitle}" />` : (post.thumbnailIcon || '✨')}
         </div>
         <div class="post-card-details">
-          <span class="post-card-time">${displayTime} &bull; ${post.status === 'published' ? '✅ Tayang' : '⏰ Terjadwal'}</span>
+          <span class="post-card-time" style="color: ${statusColor}; font-weight: 600;">${displayTime} &bull; ${statusBadge}</span>
           <span class="post-card-title">${post.projectTitle}</span>
         </div>
         <span class="post-card-channel-badge">${post.channelIcon}</span>
@@ -1201,29 +1216,39 @@ class WargativeContentPlanner {
               const connHandle = p.social_connections?.account_handle ? (isFacebook ? p.social_connections.account_handle : `@${p.social_connections.account_handle}`) : '';
               const connName = connHandle || p.social_connections?.account_name || (isFacebook ? 'Halaman Facebook' : 'Instagram Business');
 
-              // Extract first image if media_url is a JSON array string (Carousel cover)
-              let displayImageUrl = p.media_url || '';
-              if (typeof displayImageUrl === 'string' && displayImageUrl.trim().startsWith('[')) {
-                try {
-                  const parsed = JSON.parse(displayImageUrl);
-                  if (Array.isArray(parsed) && parsed.length > 0) {
-                    displayImageUrl = parsed[0];
+              // Map p.media_url: JSON array string -> mediaUrls, single URL -> [p.media_url]
+              let mediaUrls: string[] = [];
+              if (Array.isArray(p.media_url)) {
+                mediaUrls = p.media_url;
+              } else if (typeof p.media_url === 'string') {
+                const trimmed = p.media_url.trim();
+                if (trimmed.startsWith('[')) {
+                  try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                      mediaUrls = parsed;
+                    }
+                  } catch {
+                    mediaUrls = trimmed ? [trimmed] : [];
                   }
-                } catch {
-                  // Keep as is if parsing fails
+                } else if (trimmed) {
+                  mediaUrls = [trimmed];
                 }
               }
+              const displayImageUrl = mediaUrls.length > 0 ? mediaUrls[0] : '';
 
               const defaultTitle = isFacebook ? 'Postingan Facebook' : 'Postingan Instagram';
 
               return {
                 id: p.id,
                 projectId: undefined,
+                connectionId: p.connection_id || undefined,
                 projectTitle: p.caption ? (p.caption.length > 28 ? p.caption.slice(0, 28) + '...' : p.caption) : defaultTitle,
                 projectFormat: isFacebook ? 'Facebook Post' : 'Instagram Post (4:5)',
                 thumbnailColor: isFacebook ? '#1877f2' : '#e1306c',
                 thumbnailIcon: isFacebook ? '📘' : '📸',
                 imageUrl: displayImageUrl,
+                mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
                 channel: p.platform,
                 channelName: connName,
                 channelIcon: channelInfo.icon,
@@ -1231,7 +1256,9 @@ class WargativeContentPlanner {
                 dateStr: `${y}-${m}-${day}`,
                 timeStr: this.formatTo12Hour(d.getHours(), d.getMinutes()),
                 caption: p.caption || '',
-                status: p.status === 'published' ? 'published' : 'scheduled',
+                status: (['scheduled', 'publishing', 'published', 'failed'].includes(p.status) ? p.status : 'scheduled') as ScheduledPost['status'],
+                errorMessage: p.error_message || null,
+                publishedPostId: p.published_post_id || null,
                 createdAt: new Date(p.created_at).getTime()
               };
             });
@@ -1975,6 +2002,7 @@ class WargativeContentPlanner {
     const newPost: ScheduledPost = {
       id: `post_${Date.now()}`,
       projectId: this.selectedProject?.id || 'proj_marketing_ad',
+      connectionId: targetConn.id,
       projectTitle: title,
       projectFormat: format,
       thumbnailColor: thumbColor,
@@ -2092,47 +2120,72 @@ class WargativeContentPlanner {
     }
   }
 
-  // Executes actual publish to Instagram via Meta Graph API
+  // Executes actual publish to Meta (Instagram / Facebook) via Meta Graph API
   private async executePublishPost(post: ScheduledPost, connectionId: string, accountHandle: string) {
-    const originalText = this.btnPublishNow.innerHTML;
+    const originalText = this.btnPublishNow?.innerHTML || '';
     try {
-      this.btnPublishNow.disabled = true;
-      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Memproses...`;
+      if (this.btnPublishNow) {
+        this.btnPublishNow.disabled = true;
+        this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Memproses...`;
+      }
 
       let publicUrls: string[] = [];
 
-      if (this.selectedProject || this.selectedCuratedTemplate || !post.imageUrl) {
+      // Check if post is an existing scheduled post with permanent HTTPS media URL(s)
+      const hasExistingMedia = Boolean(
+        (Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0 && post.mediaUrls.every((u) => typeof u === 'string' && u.startsWith('https://'))) ||
+        (typeof post.imageUrl === 'string' && post.imageUrl.startsWith('https://'))
+      );
+
+      if (hasExistingMedia) {
+        // Path 1: Scheduled existing post -> use already stored permanent HTTPS media URLs (NO export, NO selectedProject)
+        if (post.mediaUrls && post.mediaUrls.length > 1) {
+          publicUrls = [...post.mediaUrls];
+        } else if (post.imageUrl) {
+          publicUrls = [post.imageUrl];
+        } else if (post.mediaUrls && post.mediaUrls.length === 1) {
+          publicUrls = [post.mediaUrls[0]];
+        }
+      } else {
+        // Path 2: New content from editor/creation modal -> export CE.SDK & upload
         this.showToast(`🎨 Memproses ekspor halaman desain...`);
         const imageBlobs = await this.exportProjectToJpegBlobs(
           this.selectedProject,
           this.selectedCuratedTemplate,
           (current, total) => {
-            this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">🎨</span> Mengekspor ${current}/${total}...`;
+            if (this.btnPublishNow) {
+              this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">🎨</span> Mengekspor ${current}/${total}...`;
+            }
             this.showToast(`🎨 Mengekspor slide ${current} dari ${total}...`);
           }
         );
 
         for (let i = 0; i < imageBlobs.length; i++) {
-          this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah ${i + 1}/${imageBlobs.length}...`;
+          if (this.btnPublishNow) {
+            this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah ${i + 1}/${imageBlobs.length}...`;
+          }
           this.showToast(`☁️ Mengunggah slide ${i + 1} dari ${imageBlobs.length} ke server...`);
           const url = await this.uploadMediaToStorage(imageBlobs[i]);
           publicUrls.push(url);
         }
         post.imageUrl = publicUrls[0];
-      } else {
-        const raw = (post as any).rawMediaUrl || post.imageUrl;
-        if (typeof raw === 'string' && raw.trim().startsWith('[')) {
-          try {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) publicUrls = parsed;
-          } catch {}
-        }
-        if (publicUrls.length === 0 && post.imageUrl) {
-          publicUrls = [post.imageUrl];
-        }
+        post.mediaUrls = publicUrls;
       }
 
-      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">📤</span> Menerbitkan...`;
+      publicUrls = publicUrls.filter(Boolean);
+      if (publicUrls.length === 0) {
+        throw new Error('Tidak ada media yang valid untuk diterbitkan.');
+      }
+
+      // Use the post's original connectionId if available, otherwise fallback to passed connectionId
+      const finalConnectionId = (hasExistingMedia && post.connectionId) ? post.connectionId : (connectionId || post.connectionId);
+      if (!finalConnectionId) {
+        throw new Error('ID koneksi akun tidak ditemukan.');
+      }
+
+      if (this.btnPublishNow) {
+        this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">📤</span> Menerbitkan...`;
+      }
       const isFacebook = post.channel === 'facebook';
       const channelLabel = isFacebook ? 'Halaman Facebook' : 'Instagram';
       const publishMsg = publicUrls.length > 1
@@ -2150,7 +2203,7 @@ class WargativeContentPlanner {
           ...authHeaders
         },
         body: JSON.stringify({
-          connectionId: connectionId,
+          connectionId: finalConnectionId,
           imageUrl: publicUrls.length === 1 ? publicUrls[0] : undefined,
           imageUrls: publicUrls,
           caption: post.caption
@@ -2160,13 +2213,56 @@ class WargativeContentPlanner {
       const publishData = await publishRes.json().catch(() => null);
 
       if (!publishRes.ok || !publishData?.success) {
+        // If this post was claimed from database antrean, revert status to 'scheduled'
+        if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
+          try {
+            const authHeaders = await getAuthHeader();
+            await fetch('/api/planner/posts', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...authHeaders
+              },
+              body: JSON.stringify({
+                id: post.id,
+                status: 'scheduled'
+              })
+            });
+            post.status = 'scheduled';
+            await this.fetchScheduledPosts();
+            this.renderCalendar();
+          } catch (revertErr) {
+            console.error('[Planner] Gagal mengembalikan status post ke scheduled:', revertErr);
+          }
+        }
         const errDetail = publishData?.message || publishData?.error || 'Meta menolak penerbitan postingan.';
         throw new Error(errDetail);
       }
 
-      // Successful publish
+      // Successful publish: synchronize database record to 'published' with published_post_id
+      if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
+        try {
+          const authHeaders = await getAuthHeader();
+          await fetch('/api/planner/posts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              id: post.id,
+              status: 'published',
+              publishedPostId: publishData.postId || null
+            })
+          });
+        } catch (dbErr) {
+          console.error('[Planner] Gagal memperbarui status published ke database:', dbErr);
+        }
+      }
+
       post.status = 'published';
       saveScheduledPost(post);
+      await this.fetchScheduledPosts();
       this.closeScheduleModal();
       this.renderCalendar();
 
@@ -2176,10 +2272,34 @@ class WargativeContentPlanner {
       this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
+      // Revert status to scheduled if stuck in publishing
+      if (this.currentUserId && post.id && (post.status === 'publishing' || this.serverScheduledPosts.some((p) => p.id === post.id && p.status === 'publishing'))) {
+        try {
+          const authHeaders = await getAuthHeader();
+          await fetch('/api/planner/posts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              id: post.id,
+              status: 'scheduled'
+            })
+          });
+          post.status = 'scheduled';
+          await this.fetchScheduledPosts();
+          this.renderCalendar();
+        } catch (revertErr) {
+          console.error('[Planner] Gagal mengembalikan status post ke scheduled di catch block:', revertErr);
+        }
+      }
       this.showToast(`❌ Gagal menerbitkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
     } finally {
-      this.btnPublishNow.disabled = false;
-      this.btnPublishNow.innerHTML = originalText;
+      if (this.btnPublishNow) {
+        this.btnPublishNow.disabled = false;
+        this.btnPublishNow.innerHTML = originalText;
+      }
     }
   }
 
@@ -2222,8 +2342,30 @@ class WargativeContentPlanner {
   // ==========================================================================
   // Post Detail Modal
   // ==========================================================================
+  private escapeHtml(str: string): string {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   private openPostDetailModal(post: ScheduledPost) {
     if (!this.postDetailDialogOverlay) return;
+
+    let statusLabel = '⏰ Terjadwal';
+    let statusColor = '#8b5cf6';
+    if (post.status === 'published') {
+      statusLabel = '✅ Terpublikasi / Tayang';
+      statusColor = '#10b981';
+    } else if (post.status === 'failed') {
+      statusLabel = '❌ Gagal Dipublikasikan';
+      statusColor = '#ef4444';
+    } else if (post.status === 'publishing') {
+      statusLabel = '⏳ Sedang Dipublikasikan...';
+      statusColor = '#f59e0b';
+    }
+
+    const canPublishNow = post.status === 'scheduled';
+    const canDelete = post.status === 'scheduled' || post.status === 'failed';
 
     this.postDetailDialogOverlay.innerHTML = `
       <div class="post-detail-dialog">
@@ -2235,19 +2377,32 @@ class WargativeContentPlanner {
           <div class="post-detail-meta">
             <h3 class="post-detail-title">${post.projectTitle}</h3>
             <span class="post-detail-channel">${post.channelIcon} ${post.channelName}</span>
-            <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${this.formatTimeString(post.timeStr)} WIB &bull; <strong>${post.status === 'published' ? '✅ Terpublikasi' : '⏰ Terjadwal'}</strong></span>
+            <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${this.formatTimeString(post.timeStr)} WIB &bull; <strong style="color: ${statusColor};">${statusLabel}</strong></span>
           </div>
         </div>
 
         ${post.caption ? `<div class="post-detail-caption">${post.caption}</div>` : ''}
 
+        ${post.status === 'failed' ? `
+          <div class="post-detail-error" style="margin: 14px 0 6px 0; padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; color: #ef4444; font-size: 13px; line-height: 1.5;">
+            <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <span>⚠️</span><span>Penyebab Kegagalan:</span>
+            </div>
+            <div style="color: #f87171; word-break: break-word;">
+              ${post.errorMessage ? this.escapeHtml(post.errorMessage) : 'Postingan gagal diterbitkan oleh sistem ke Meta Graph API.'}
+            </div>
+          </div>
+        ` : ''}
+
         <div class="post-detail-actions">
-          ${post.status === 'scheduled' ? `
+          ${canPublishNow ? `
             <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
               <span>🚀</span><span>Publikasikan Sekarang</span>
             </button>
           ` : ''}
-          <button class="btn-delete-post" id="btnDeleteScheduledPost">Hapus Jadwal</button>
+          ${canDelete ? `
+            <button class="btn-delete-post" id="btnDeleteScheduledPost">Hapus Jadwal</button>
+          ` : ''}
           <button class="btn-open-editor" id="btnOpenInEditor">Buka di Editor</button>
         </div>
       </div>
@@ -2260,15 +2415,62 @@ class WargativeContentPlanner {
       this.postDetailDialogOverlay.classList.remove('active');
     });
 
-    const btnPublishNowDetail = this.postDetailDialogOverlay.querySelector('#btnPublishNowDetail');
-    btnPublishNowDetail?.addEventListener('click', () => {
-      const serverConn = this.serverConnections.find((c) => c.platform === post.channel);
-      if (serverConn && serverConn.status === 'connected') {
-        this.postDetailDialogOverlay.classList.remove('active');
-        const handle = serverConn.accountHandle || serverConn.accountName || post.channelName;
-        this.executePublishPost(post, serverConn.id, handle);
-      } else {
+    const btnPublishNowDetail = this.postDetailDialogOverlay.querySelector('#btnPublishNowDetail') as HTMLButtonElement | null;
+    btnPublishNowDetail?.addEventListener('click', async () => {
+      // Find connection: prefer post.connectionId if available, avoiding blind .find() by platform
+      let serverConn = post.connectionId ? this.serverConnections.find((c) => c.id === post.connectionId) : null;
+      if (!serverConn && !post.connectionId) {
+        serverConn = this.serverConnections.find((c) => c.platform === post.channel);
+      }
+
+      const targetConnId = post.connectionId || serverConn?.id;
+      if (!targetConnId) {
+        this.showToast(`⚠️ Saluran ${post.channelName} tidak ditemukan koneksinya. Silakan hubungkan kembali.`);
+        return;
+      }
+
+      if (serverConn && serverConn.status !== 'connected') {
         this.showToast(`⚠️ Saluran ${post.channelName} belum terhubung! Silakan hubungkan dulu.`);
+        return;
+      }
+
+      // 1. Prevent multi-clicks immediately
+      btnPublishNowDetail.disabled = true;
+      const originalText = btnPublishNowDetail.innerHTML;
+      btnPublishNowDetail.innerHTML = `<span>⏳</span><span>Memproses...</span>`;
+
+      try {
+        // 2. Atomic claim on backend: transition 'scheduled' -> 'publishing'
+        if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
+          const authHeaders = await getAuthHeader();
+          const claimRes = await fetch('/api/planner/posts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              id: post.id,
+              status: 'publishing'
+            })
+          });
+
+          const claimData = await claimRes.json().catch(() => null);
+          if (!claimRes.ok || !claimData?.success) {
+            const msg = claimData?.message || 'Postingan sedang diproses atau sudah tidak dalam status terjadwal.';
+            throw new Error(msg);
+          }
+          post.status = 'publishing';
+        }
+
+        this.postDetailDialogOverlay.classList.remove('active');
+        const handle = serverConn?.accountHandle || serverConn?.accountName || post.channelName;
+        await this.executePublishPost(post, targetConnId, handle);
+      } catch (err: any) {
+        console.error('[Planner] Gagal publish now dari detail:', err);
+        this.showToast(`❌ ${err?.message || 'Gagal memproses publikasi instan.'}`, 6000);
+        btnPublishNowDetail.disabled = false;
+        btnPublishNowDetail.innerHTML = originalText;
       }
     });
 
