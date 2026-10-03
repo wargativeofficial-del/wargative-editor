@@ -177,6 +177,7 @@ export async function publishFacebookPost(options: PublishFacebookOptions): Prom
         body: JSON.stringify({
           url: resolvedUrls[0],
           caption: postCaption,
+          published: true,
           access_token: pageAccessToken
         })
       });

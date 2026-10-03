@@ -1241,6 +1241,7 @@ class WargativeContentPlanner {
 
               return {
                 id: p.id,
+                isServer: true,
                 projectId: undefined,
                 connectionId: p.connection_id || undefined,
                 projectTitle: p.caption ? (p.caption.length > 28 ? p.caption.slice(0, 28) + '...' : p.caption) : defaultTitle,
@@ -2120,9 +2121,22 @@ class WargativeContentPlanner {
     }
   }
 
+  // Helper to reliably check if a post is a server-managed scheduled post
+  private async isServerScheduledPost(post: ScheduledPost): Promise<boolean> {
+    if (!post?.id || post.id.startsWith('post_')) return false;
+    if (!this.currentUserId) {
+      const user = await getCurrentUser();
+      this.currentUserId = user ? user.id : null;
+    }
+    if (!this.currentUserId) return false;
+    return Boolean(post.isServer || this.serverScheduledPosts.some((p) => p.id === post.id));
+  }
+
   // Executes actual publish to Meta (Instagram / Facebook) via Meta Graph API
   private async executePublishPost(post: ScheduledPost, connectionId: string, accountHandle: string) {
     const originalText = this.btnPublishNow?.innerHTML || '';
+    let metaPublished = false;
+    const isServer = await this.isServerScheduledPost(post);
     try {
       if (this.btnPublishNow) {
         this.btnPublishNow.disabled = true;
@@ -2213,54 +2227,39 @@ class WargativeContentPlanner {
       const publishData = await publishRes.json().catch(() => null);
 
       if (!publishRes.ok || !publishData?.success) {
-        // If this post was claimed from database antrean, revert status to 'scheduled'
-        if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
-          try {
-            const authHeaders = await getAuthHeader();
-            await fetch('/api/planner/posts', {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                ...authHeaders
-              },
-              body: JSON.stringify({
-                id: post.id,
-                status: 'scheduled'
-              })
-            });
-            post.status = 'scheduled';
-            await this.fetchScheduledPosts();
-            this.renderCalendar();
-          } catch (revertErr) {
-            console.error('[Planner] Gagal mengembalikan status post ke scheduled:', revertErr);
-          }
-        }
         const errDetail = publishData?.message || publishData?.error || 'Meta menolak penerbitan postingan.';
         throw new Error(errDetail);
       }
 
+      // Meta successfully published the post
+      metaPublished = true;
+
       // Successful publish: synchronize database record to 'published' with published_post_id
-      if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
-        try {
-          const authHeaders = await getAuthHeader();
-          await fetch('/api/planner/posts', {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...authHeaders
-            },
-            body: JSON.stringify({
-              id: post.id,
-              status: 'published',
-              publishedPostId: publishData.postId || null
-            })
-          });
-        } catch (dbErr) {
-          console.error('[Planner] Gagal memperbarui status published ke database:', dbErr);
+      if (isServer) {
+        const authHeaders = await getAuthHeader();
+        const patchRes = await fetch('/api/planner/posts', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders
+          },
+          body: JSON.stringify({
+            id: post.id,
+            status: 'published',
+            publishedPostId: publishData.postId || null
+          })
+        });
+
+        const patchData = await patchRes.json().catch(() => null);
+        if (!patchRes.ok || !patchData?.success) {
+          const errMsg = patchData?.message || `Gagal sinkronisasi status ke database (HTTP ${patchRes.status}).`;
+          console.error('[Planner] Gagal memperbarui status published ke database:', errMsg);
+          throw new Error(errMsg);
         }
       }
 
       post.status = 'published';
+      post.publishedPostId = publishData.postId || null;
       saveScheduledPost(post);
       await this.fetchScheduledPosts();
       this.closeScheduleModal();
@@ -2272,11 +2271,11 @@ class WargativeContentPlanner {
       this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
-      // Revert status to scheduled if stuck in publishing
-      if (this.currentUserId && post.id && (post.status === 'publishing' || this.serverScheduledPosts.some((p) => p.id === post.id && p.status === 'publishing'))) {
+      // Revert status to scheduled ONLY if stuck in publishing AND not yet published on Meta
+      if (isServer && post.status === 'publishing' && !metaPublished) {
         try {
           const authHeaders = await getAuthHeader();
-          await fetch('/api/planner/posts', {
+          const revRes = await fetch('/api/planner/posts', {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -2287,7 +2286,13 @@ class WargativeContentPlanner {
               status: 'scheduled'
             })
           });
+          const revData = await revRes.json().catch(() => null);
+          if (!revRes.ok || !revData?.success) {
+            console.error('[Planner] Revert di catch block gagal di server:', revRes.status, revData);
+          }
           post.status = 'scheduled';
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) itemInList.status = 'scheduled';
           await this.fetchScheduledPosts();
           this.renderCalendar();
         } catch (revertErr) {
@@ -2441,7 +2446,8 @@ class WargativeContentPlanner {
 
       try {
         // 2. Atomic claim on backend: transition 'scheduled' -> 'publishing'
-        if (this.currentUserId && post.id && this.serverScheduledPosts.some((p) => p.id === post.id)) {
+        const isServer = await this.isServerScheduledPost(post);
+        if (isServer) {
           const authHeaders = await getAuthHeader();
           const claimRes = await fetch('/api/planner/posts', {
             method: 'PATCH',
@@ -2457,10 +2463,12 @@ class WargativeContentPlanner {
 
           const claimData = await claimRes.json().catch(() => null);
           if (!claimRes.ok || !claimData?.success) {
-            const msg = claimData?.message || 'Postingan sedang diproses atau sudah tidak dalam status terjadwal.';
+            const msg = claimData?.message || `Postingan sedang diproses atau sudah tidak dalam status terjadwal (HTTP ${claimRes.status}).`;
             throw new Error(msg);
           }
           post.status = 'publishing';
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) itemInList.status = 'publishing';
         }
 
         this.postDetailDialogOverlay.classList.remove('active');

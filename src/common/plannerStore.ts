@@ -27,6 +27,7 @@ export type ScheduledPostStatus = 'scheduled' | 'publishing' | 'published' | 'fa
 
 export interface ScheduledPost {
   id: string;
+  isServer?: boolean;
   projectId?: string;
   connectionId?: string;
   projectTitle: string;
