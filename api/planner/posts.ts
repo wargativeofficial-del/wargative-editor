@@ -163,7 +163,7 @@ async function handlePost(
   if (urlList.length > 10) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: `Instagram Carousel hanya mendukung maksimal 10 gambar per postingan (ditemukan: ${urlList.length}).`
+      message: `Penjadwalan postingan hanya mendukung maksimal 10 gambar per postingan (ditemukan: ${urlList.length}).`
     });
   }
 
@@ -216,17 +216,18 @@ async function handlePost(
       });
     }
 
-    if (connection.platform !== 'instagram') {
+    if (connection.platform !== 'instagram' && connection.platform !== 'facebook') {
       return res.status(400).json({
         error: 'Invalid Platform',
-        message: `Platform penjadwalan saat ini hanya mendukung Instagram (ditemukan: ${connection.platform}).`
+        message: `Platform penjadwalan saat ini hanya mendukung Instagram dan Facebook (ditemukan: ${connection.platform}).`
       });
     }
 
     if (connection.status !== 'connected') {
+      const platformLabel = connection.platform === 'facebook' ? 'Halaman Facebook' : 'Instagram';
       return res.status(400).json({
         error: 'Connection Inactive',
-        message: `Koneksi akun Instagram (${connection.account_handle || connection.account_name}) tidak aktif. Silakan hubungkan ulang akun Anda.`
+        message: `Koneksi akun ${platformLabel} (${connection.account_handle || connection.account_name}) tidak aktif. Silakan hubungkan ulang akun Anda.`
       });
     }
 
@@ -236,7 +237,7 @@ async function handlePost(
       .insert({
         user_id: userId, // Strictly set from authenticated JWT
         connection_id: connection.id,
-        platform: 'instagram', // Automatically determined as instagram
+        platform: connection.platform, // Determines either instagram or facebook
         caption: typeof caption === 'string' ? caption.trim() : null,
         media_url: resolvedMediaUrl,
         scheduled_at: parsedDate.toISOString(),

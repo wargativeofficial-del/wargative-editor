@@ -22,6 +22,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
 import { publishInstagramPost } from '../_lib/instagramPublisher.js';
+import { publishFacebookPost } from '../_lib/facebookPublisher.js';
 
 const BATCH_LIMIT = 10;
 
@@ -140,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       continue;
     }
 
-    if (post.platform !== 'instagram') {
+    if (post.platform !== 'instagram' && post.platform !== 'facebook') {
       await markPostFailed(supabase, post.id, `Platform "${post.platform}" belum didukung oleh Cron Publisher.`);
       failed++;
       continue;
@@ -178,28 +179,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 6. Execute publishing via shared publisher
     try {
-      const result = await publishInstagramPost({
-        connectionId: post.connection_id,
-        userId: post.user_id,
-        imageUrl: post.media_url,
-        caption: post.caption || undefined
-      });
+      let publishedPostId: string;
+      let accountIdentifier: string;
+
+      if (post.platform === 'facebook') {
+        const result = await publishFacebookPost({
+          connectionId: post.connection_id,
+          userId: post.user_id,
+          imageUrl: post.media_url,
+          caption: post.caption || undefined
+        });
+        publishedPostId = result.postId;
+        accountIdentifier = result.accountName || result.accountHandle;
+        console.log(`[Cron Publisher] Berhasil menerbitkan post ${post.id} ke Halaman Facebook (${accountIdentifier}), Post ID: ${result.postId}`);
+      } else {
+        const result = await publishInstagramPost({
+          connectionId: post.connection_id,
+          userId: post.user_id,
+          imageUrl: post.media_url,
+          caption: post.caption || undefined
+        });
+        publishedPostId = result.postId;
+        accountIdentifier = `@${result.accountHandle}`;
+        console.log(`[Cron Publisher] Berhasil menerbitkan post ${post.id} ke Instagram (${accountIdentifier}), Post ID: ${result.postId}`);
+      }
 
       // 7. Update status to 'published'
       await supabase
         .from('scheduled_posts')
         .update({
           status: 'published',
-          published_post_id: result.postId,
+          published_post_id: publishedPostId,
           error_message: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', post.id);
 
-      console.log(`[Cron Publisher] Berhasil menerbitkan post ${post.id} ke Instagram (@${result.accountHandle}), Post ID: ${result.postId}`);
       published++;
     } catch (err: any) {
-      const errMsg = err?.message || 'Gagal menerbitkan postingan ke Instagram.';
+      const errMsg = err?.message || `Gagal menerbitkan postingan ke ${post.platform}.`;
       console.error(`[Cron Publisher] Gagal menerbitkan post ${post.id}:`, errMsg);
       await markPostFailed(supabase, post.id, errMsg);
       failed++;

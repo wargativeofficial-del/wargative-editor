@@ -1196,9 +1196,10 @@ class WargativeContentPlanner {
               const m = String(d.getMonth() + 1).padStart(2, '0');
               const day = String(d.getDate()).padStart(2, '0');
 
-              const channelInfo = SOCIAL_CHANNELS.find((sc) => sc.id === p.platform) || SOCIAL_CHANNELS[0];
-              const connHandle = p.social_connections?.account_handle ? `@${p.social_connections.account_handle}` : '';
-              const connName = connHandle || p.social_connections?.account_name || 'Instagram Business';
+              const isFacebook = p.platform === 'facebook';
+              const channelInfo = SOCIAL_CHANNELS.find((sc) => sc.id === p.platform) || (isFacebook ? SOCIAL_CHANNELS[2] : SOCIAL_CHANNELS[0]);
+              const connHandle = p.social_connections?.account_handle ? (isFacebook ? p.social_connections.account_handle : `@${p.social_connections.account_handle}`) : '';
+              const connName = connHandle || p.social_connections?.account_name || (isFacebook ? 'Halaman Facebook' : 'Instagram Business');
 
               // Extract first image if media_url is a JSON array string (Carousel cover)
               let displayImageUrl = p.media_url || '';
@@ -1213,13 +1214,15 @@ class WargativeContentPlanner {
                 }
               }
 
+              const defaultTitle = isFacebook ? 'Postingan Facebook' : 'Postingan Instagram';
+
               return {
                 id: p.id,
                 projectId: undefined,
-                projectTitle: p.caption ? (p.caption.length > 28 ? p.caption.slice(0, 28) + '...' : p.caption) : 'Postingan Instagram',
-                projectFormat: 'Instagram Post (4:5)',
-                thumbnailColor: '#e1306c',
-                thumbnailIcon: '📸',
+                projectTitle: p.caption ? (p.caption.length > 28 ? p.caption.slice(0, 28) + '...' : p.caption) : defaultTitle,
+                projectFormat: isFacebook ? 'Facebook Post' : 'Instagram Post (4:5)',
+                thumbnailColor: isFacebook ? '#1877f2' : '#e1306c',
+                thumbnailIcon: isFacebook ? '📘' : '📸',
                 imageUrl: displayImageUrl,
                 channel: p.platform,
                 channelName: connName,
@@ -1948,10 +1951,6 @@ class WargativeContentPlanner {
       return;
     }
 
-    if (!isImmediate && this.formSelectedChannel.id === 'facebook') {
-      this.showToast('Fitur penjadwalan otomatis untuk Halaman Facebook akan segera tersedia di pembaruan berikutnya. Gunakan tombol "Publikasikan Sekarang".');
-      return;
-    }
 
     const targetConn = this.formSelectedConnection || this.serverConnections.find((c) => c.platform === this.formSelectedChannel.id && c.status === 'connected');
     const isConn = Boolean(targetConn && targetConn.status === 'connected');
@@ -2077,8 +2076,13 @@ class WargativeContentPlanner {
       const d = scheduledDate.getDate();
       const monthName = MONTH_NAMES_ID[scheduledDate.getMonth()];
       const timeStr = this.formScheduledTime || this.formatTo12Hour(scheduledDate.getHours(), scheduledDate.getMinutes());
-      const postTypeStr = publicUrls.length > 1 ? `Carousel (${publicUrls.length} slide)` : 'Postingan';
-      this.showToast(`📅 ${postTypeStr} berhasil dijadwalkan ke Instagram (@${accountHandle}) pada ${d} ${monthName} pukul ${timeStr}! 🚀`, 6000);
+      const isFacebook = this.formSelectedChannel.id === 'facebook';
+      const channelLabel = isFacebook ? 'Halaman Facebook' : 'Instagram';
+      const handleDisplay = isFacebook ? accountHandle : `@${accountHandle}`;
+      const postTypeStr = publicUrls.length > 1
+        ? (isFacebook ? `Multi-foto (${publicUrls.length} slide)` : `Carousel (${publicUrls.length} slide)`)
+        : 'Postingan';
+      this.showToast(`📅 ${postTypeStr} berhasil dijadwalkan ke ${channelLabel} (${handleDisplay}) pada ${d} ${monthName} pukul ${timeStr}! 🚀`, 6000);
     } catch (err: any) {
       console.error('[Planner] Schedule error:', err);
       this.showToast(`❌ Gagal menjadwalkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
