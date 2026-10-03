@@ -1938,8 +1938,13 @@ class WargativeContentPlanner {
     }
 
     // Verify channel and account connection
-    if (this.formSelectedChannel.id !== 'instagram') {
-      this.showToast(`Fitur saat ini khusus untuk Instagram Business. Saluran ${this.formSelectedChannel.name} akan tersedia di tahap selanjutnya.`);
+    if (this.formSelectedChannel.id !== 'instagram' && this.formSelectedChannel.id !== 'facebook') {
+      this.showToast(`Saluran ${this.formSelectedChannel.name} akan tersedia di tahap selanjutnya.`);
+      return;
+    }
+
+    if (!isImmediate && this.formSelectedChannel.id === 'facebook') {
+      this.showToast('Fitur penjadwalan otomatis untuk Halaman Facebook akan segera tersedia di pembaruan berikutnya. Gunakan tombol "Publikasikan Sekarang".');
       return;
     }
 
@@ -2119,13 +2124,17 @@ class WargativeContentPlanner {
       }
 
       this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">📤</span> Menerbitkan...`;
+      const isFacebook = post.channel === 'facebook';
+      const channelLabel = isFacebook ? 'Halaman Facebook' : 'Instagram';
       const publishMsg = publicUrls.length > 1
-        ? `📤 Mengirim Carousel (${publicUrls.length} slide) ke Meta Instagram API (${accountHandle})...`
-        : `📤 Mengirim konten ke Meta Instagram API (${accountHandle})...`;
+        ? `📤 Mengirim ${isFacebook ? 'Multi-foto' : 'Carousel'} (${publicUrls.length} slide) ke Meta ${channelLabel} (${accountHandle})...`
+        : `📤 Mengirim konten ke Meta ${channelLabel} (${accountHandle})...`;
       this.showToast(publishMsg);
 
+      const publishEndpoint = isFacebook ? '/api/publish/facebook' : '/api/publish/instagram';
+
       const authHeaders = await getAuthHeader();
-      const publishRes = await fetch('/api/publish/instagram', {
+      const publishRes = await fetch(publishEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2152,9 +2161,10 @@ class WargativeContentPlanner {
       this.closeScheduleModal();
       this.renderCalendar();
 
-      const permalinkNotice = publishData.permalink ? `<br/><a href="${publishData.permalink}" target="_blank" style="color:#60a5fa; text-decoration:underline;">Buka Postingan di Instagram &rsaquo;</a>` : '';
-      const postTypeStr = publicUrls.length > 1 ? `Carousel (${publicUrls.length} slide)` : 'Postingan';
-      this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke Instagram (${accountHandle})! 🚀${permalinkNotice}`, 7000);
+      const permalinkLabel = isFacebook ? 'Buka Postingan di Facebook' : 'Buka Postingan di Instagram';
+      const permalinkNotice = publishData.permalink ? `<br/><a href="${publishData.permalink}" target="_blank" style="color:#60a5fa; text-decoration:underline;">${permalinkLabel} &rsaquo;</a>` : '';
+      const postTypeStr = publicUrls.length > 1 ? (isFacebook ? `Multi-foto (${publicUrls.length} slide)` : `Carousel (${publicUrls.length} slide)`) : 'Postingan';
+      this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
       this.showToast(`❌ Gagal menerbitkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
