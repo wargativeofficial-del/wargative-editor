@@ -146,7 +146,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       continue;
     }
 
-    if (!post.media_url || typeof post.media_url !== 'string' || !post.media_url.startsWith('https://')) {
+    const rawMedia = (post.media_url || '').trim();
+    let isValidMedia = false;
+    if (rawMedia.startsWith('https://')) {
+      isValidMedia = true;
+    } else if (rawMedia.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(rawMedia);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.length <= 10 &&
+          parsed.every((u: any) => typeof u === 'string' && u.startsWith('https://'))
+        ) {
+          isValidMedia = true;
+        }
+      } catch {}
+    }
+
+    if (!isValidMedia) {
       await markPostFailed(supabase, post.id, 'Media URL tidak valid atau bukan protokol HTTPS.');
       failed++;
       continue;

@@ -114,7 +114,7 @@ async function handlePost(
   userId: string,
   supabase: ReturnType<typeof getSupabaseAdmin>
 ) {
-  const { connectionId, caption, mediaUrl, scheduledAt } = req.body || {};
+  const { connectionId, caption, mediaUrl, mediaUrls, scheduledAt } = req.body || {};
 
   // Validation: connectionId
   if (!connectionId || typeof connectionId !== 'string' || connectionId.trim().length === 0) {
@@ -124,12 +124,57 @@ async function handlePost(
     });
   }
 
-  // Validation: mediaUrl (Must be HTTPS)
-  if (!mediaUrl || typeof mediaUrl !== 'string' || !mediaUrl.startsWith('https://')) {
+  // Resolve and validate media URLs (supports single HTTPS URL, JSON array string, or mediaUrls array)
+  let resolvedMediaUrl = '';
+  let urlList: string[] = [];
+
+  if (Array.isArray(mediaUrls) && mediaUrls.length > 0) {
+    urlList = mediaUrls;
+    resolvedMediaUrl = urlList.length === 1 ? urlList[0] : JSON.stringify(urlList);
+  } else if (mediaUrl && typeof mediaUrl === 'string') {
+    const trimmed = mediaUrl.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          urlList = parsed;
+          resolvedMediaUrl = urlList.length === 1 ? urlList[0] : trimmed;
+        } else {
+          urlList = [trimmed];
+          resolvedMediaUrl = trimmed;
+        }
+      } catch {
+        urlList = [trimmed];
+        resolvedMediaUrl = trimmed;
+      }
+    } else {
+      urlList = [trimmed];
+      resolvedMediaUrl = trimmed;
+    }
+  }
+
+  if (urlList.length === 0 || !resolvedMediaUrl) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Parameter mediaUrl wajib berupa URL HTTPS publik yang valid.'
+      message: 'Parameter mediaUrl atau mediaUrls wajib disertakan.'
     });
+  }
+
+  if (urlList.length > 10) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: `Instagram Carousel hanya mendukung maksimal 10 gambar per postingan (ditemukan: ${urlList.length}).`
+    });
+  }
+
+  for (let i = 0; i < urlList.length; i++) {
+    const u = urlList[i];
+    if (!u || typeof u !== 'string' || !u.startsWith('https://')) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: `URL media ke-${i + 1} tidak valid. Semua URL wajib berupa URL HTTPS publik yang valid.`
+      });
+    }
   }
 
   // Validation: scheduledAt (Must be valid future date)
@@ -193,7 +238,7 @@ async function handlePost(
         connection_id: connection.id,
         platform: 'instagram', // Automatically determined as instagram
         caption: typeof caption === 'string' ? caption.trim() : null,
-        media_url: mediaUrl.trim(),
+        media_url: resolvedMediaUrl,
         scheduled_at: parsedDate.toISOString(),
         status: 'scheduled'
       })

@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await authenticateRequest(req, res);
   if (!user) return; // 401 already sent
 
-  const { connectionId, imageUrl, caption } = req.body || {};
+  const { connectionId, imageUrl, imageUrls, caption } = req.body || {};
 
   if (!connectionId || typeof connectionId !== 'string') {
     return res.status(400).json({
@@ -40,18 +40,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('https://')) {
+  // Resolve media URLs (supports imageUrl string or imageUrls array)
+  let resolvedUrls: string[] = [];
+  if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+    resolvedUrls = imageUrls;
+  } else if (imageUrl && typeof imageUrl === 'string') {
+    const trimmed = imageUrl.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) resolvedUrls = parsed;
+        else resolvedUrls = [trimmed];
+      } catch {
+        resolvedUrls = [trimmed];
+      }
+    } else {
+      resolvedUrls = [trimmed];
+    }
+  }
+
+  if (resolvedUrls.length === 0) {
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Parameter imageUrl wajib berupa URL HTTPS publik yang valid.'
+      message: 'Parameter imageUrl atau imageUrls wajib disertakan.'
     });
+  }
+
+  if (resolvedUrls.length > 10) {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: `Instagram Carousel hanya mendukung maksimal 10 gambar per postingan (ditemukan: ${resolvedUrls.length}).`
+    });
+  }
+
+  for (let i = 0; i < resolvedUrls.length; i++) {
+    const u = resolvedUrls[i];
+    if (!u || typeof u !== 'string' || !u.startsWith('https://')) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: `URL media ke-${i + 1} tidak valid. Semua URL wajib berupa URL HTTPS publik yang valid.`
+      });
+    }
   }
 
   try {
     const result = await publishInstagramPost({
       connectionId,
       userId: user.id,
-      imageUrl,
+      imageUrls: resolvedUrls,
       caption
     });
 

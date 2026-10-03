@@ -1200,6 +1200,19 @@ class WargativeContentPlanner {
               const connHandle = p.social_connections?.account_handle ? `@${p.social_connections.account_handle}` : '';
               const connName = connHandle || p.social_connections?.account_name || 'Instagram Business';
 
+              // Extract first image if media_url is a JSON array string (Carousel cover)
+              let displayImageUrl = p.media_url || '';
+              if (typeof displayImageUrl === 'string' && displayImageUrl.trim().startsWith('[')) {
+                try {
+                  const parsed = JSON.parse(displayImageUrl);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    displayImageUrl = parsed[0];
+                  }
+                } catch {
+                  // Keep as is if parsing fails
+                }
+              }
+
               return {
                 id: p.id,
                 projectId: undefined,
@@ -1207,7 +1220,7 @@ class WargativeContentPlanner {
                 projectFormat: 'Instagram Post (4:5)',
                 thumbnailColor: '#e1306c',
                 thumbnailIcon: '📸',
-                imageUrl: p.media_url,
+                imageUrl: displayImageUrl,
                 channel: p.platform,
                 channelName: connName,
                 channelIcon: channelInfo.icon,
@@ -1686,7 +1699,11 @@ class WargativeContentPlanner {
   // ==========================================================================
   // Media Pipeline: Export Project & Upload to Supabase Storage
   // ==========================================================================
-  private async exportProjectToJpegBlob(project: ProjectItem | null, template: any | null): Promise<Blob> {
+  private async exportProjectToJpegBlobs(
+    project: ProjectItem | null,
+    template: any | null,
+    onProgress?: (current: number, total: number) => void
+  ): Promise<Blob[]> {
     // 1. Strict export for user projects containing CE.SDK scenes
     if (project?.id) {
       const sceneString = getProjectScene(project.id);
@@ -1703,12 +1720,27 @@ class WargativeContentPlanner {
             throw new Error('Scene tidak ditemukan di memori editor.');
           }
           const pages = engine.scene.getPages();
-          const targetBlock = pages.length > 0 ? pages[0] : activeScene;
-          const blob = await engine.block.export(targetBlock, { mimeType: 'image/jpeg' });
-          if (blob && blob.size > 0) {
-            return blob;
+
+          // Strict validation: max 10 slides per Instagram Carousel (NO silent truncation!)
+          if (pages.length > 10) {
+            throw new Error(`Project memiliki ${pages.length} halaman. Instagram Carousel hanya mendukung maksimal 10 slide per postingan. Silakan kurangi jumlah halaman sebelum mempublikasikan.`);
           }
-          throw new Error('Hasil ekspor gambar kosong.');
+
+          const targetPages = pages.length > 0 ? pages : [activeScene];
+          const exportedBlobs: Blob[] = [];
+
+          for (let i = 0; i < targetPages.length; i++) {
+            if (onProgress) {
+              onProgress(i + 1, targetPages.length);
+            }
+            const blob = await engine.block.export(targetPages[i], { mimeType: 'image/jpeg' });
+            if (!blob || blob.size === 0) {
+              throw new Error(`Hasil ekspor gambar pada halaman ke-${i + 1} kosong.`);
+            }
+            exportedBlobs.push(blob);
+          }
+
+          return exportedBlobs;
         } catch (cesdkErr: any) {
           console.error('[Planner] CE.SDK headless export error:', cesdkErr);
           // STRICT: Extract full original CE.SDK error without falling back to generic 'Export error'
@@ -1725,8 +1757,13 @@ class WargativeContentPlanner {
       }
     }
 
-    // 2. High-Fidelity Canvas Renderer Fallback
-    // Only used for items that do not have a sceneString (e.g. curated text templates)
+    // 2. High-Fidelity Canvas Renderer Fallback (Single page only)
+    const fallbackBlob = await this.renderFallbackCanvas(project, template);
+    return [fallbackBlob];
+  }
+
+  // Fallback Canvas Renderer for curated templates without CE.SDK scenes
+  private async renderFallbackCanvas(project: ProjectItem | null, template: any | null): Promise<Blob> {
     return new Promise<Blob>((resolve, reject) => {
       try {
         const isPortrait = project?.format?.includes('4:5') || project?.height === 1350;
@@ -1975,18 +2012,31 @@ class WargativeContentPlanner {
       this.btnSubmitSchedule.disabled = true;
       this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Menjadwalkan...`;
 
-      this.showToast(`🎨 Mengekspor gambar desain...`);
-      const imageBlob = await this.exportProjectToJpegBlob(this.selectedProject, this.selectedCuratedTemplate);
+      this.showToast(`🎨 Memproses ekspor halaman desain...`);
+      const imageBlobs = await this.exportProjectToJpegBlobs(
+        this.selectedProject,
+        this.selectedCuratedTemplate,
+        (current, total) => {
+          this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">🎨</span> Mengekspor ${current}/${total}...`;
+          this.showToast(`🎨 Mengekspor slide ${current} dari ${total}...`);
+        }
+      );
 
-      this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah...`;
-      this.showToast(`☁️ Mengunggah gambar ke penyimpanan server...`);
-      const publicImageUrl = await this.uploadMediaToStorage(imageBlob);
+      const publicUrls: string[] = [];
+      for (let i = 0; i < imageBlobs.length; i++) {
+        this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah ${i + 1}/${imageBlobs.length}...`;
+        this.showToast(`☁️ Mengunggah slide ${i + 1} dari ${imageBlobs.length} ke penyimpanan server...`);
+        const url = await this.uploadMediaToStorage(imageBlobs[i]);
+        publicUrls.push(url);
+      }
 
       this.btnSubmitSchedule.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">💾</span> Menyimpan jadwal...`;
       this.showToast(`💾 Menyimpan jadwal postingan ke database...`);
 
       const authHeaders = await getAuthHeader();
       const captionText = this.captionInput?.value.trim() || 'Desain terbaru dari Wargative Studio ✨🎨 #Wargative #CreativeDesign';
+
+      const finalMediaUrl = publicUrls.length === 1 ? publicUrls[0] : JSON.stringify(publicUrls);
 
       const res = await fetch('/api/planner/posts', {
         method: 'POST',
@@ -1997,7 +2047,8 @@ class WargativeContentPlanner {
         body: JSON.stringify({
           connectionId: connectionId,
           caption: captionText,
-          mediaUrl: publicImageUrl,
+          mediaUrl: finalMediaUrl,
+          mediaUrls: publicUrls,
           scheduledAt: scheduledDate.toISOString()
         })
       });
@@ -2016,7 +2067,8 @@ class WargativeContentPlanner {
       const d = scheduledDate.getDate();
       const monthName = MONTH_NAMES_ID[scheduledDate.getMonth()];
       const timeStr = this.formScheduledTime || this.formatTo12Hour(scheduledDate.getHours(), scheduledDate.getMinutes());
-      this.showToast(`📅 Postingan berhasil dijadwalkan ke Instagram (@${accountHandle}) pada ${d} ${monthName} pukul ${timeStr}! 🚀`, 6000);
+      const postTypeStr = publicUrls.length > 1 ? `Carousel (${publicUrls.length} slide)` : 'Postingan';
+      this.showToast(`📅 ${postTypeStr} berhasil dijadwalkan ke Instagram (@${accountHandle}) pada ${d} ${monthName} pukul ${timeStr}! 🚀`, 6000);
     } catch (err: any) {
       console.error('[Planner] Schedule error:', err);
       this.showToast(`❌ Gagal menjadwalkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
@@ -2033,16 +2085,44 @@ class WargativeContentPlanner {
       this.btnPublishNow.disabled = true;
       this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span> Memproses...`;
 
-      this.showToast(`🎨 Mengekspor gambar desain...`);
-      const imageBlob = await this.exportProjectToJpegBlob(this.selectedProject, this.selectedCuratedTemplate);
+      let publicUrls: string[] = [];
 
-      this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah...`;
-      this.showToast(`☁️ Mengunggah gambar ke penyimpanan server...`);
-      const publicImageUrl = await this.uploadMediaToStorage(imageBlob);
-      post.imageUrl = publicImageUrl;
+      if (this.selectedProject || this.selectedCuratedTemplate || !post.imageUrl) {
+        this.showToast(`🎨 Memproses ekspor halaman desain...`);
+        const imageBlobs = await this.exportProjectToJpegBlobs(
+          this.selectedProject,
+          this.selectedCuratedTemplate,
+          (current, total) => {
+            this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">🎨</span> Mengekspor ${current}/${total}...`;
+            this.showToast(`🎨 Mengekspor slide ${current} dari ${total}...`);
+          }
+        );
+
+        for (let i = 0; i < imageBlobs.length; i++) {
+          this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">☁️</span> Mengunggah ${i + 1}/${imageBlobs.length}...`;
+          this.showToast(`☁️ Mengunggah slide ${i + 1} dari ${imageBlobs.length} ke server...`);
+          const url = await this.uploadMediaToStorage(imageBlobs[i]);
+          publicUrls.push(url);
+        }
+        post.imageUrl = publicUrls[0];
+      } else {
+        const raw = (post as any).rawMediaUrl || post.imageUrl;
+        if (typeof raw === 'string' && raw.trim().startsWith('[')) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) publicUrls = parsed;
+          } catch {}
+        }
+        if (publicUrls.length === 0 && post.imageUrl) {
+          publicUrls = [post.imageUrl];
+        }
+      }
 
       this.btnPublishNow.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite;">📤</span> Menerbitkan...`;
-      this.showToast(`📤 Mengirim konten ke Meta Instagram API (${accountHandle})...`);
+      const publishMsg = publicUrls.length > 1
+        ? `📤 Mengirim Carousel (${publicUrls.length} slide) ke Meta Instagram API (${accountHandle})...`
+        : `📤 Mengirim konten ke Meta Instagram API (${accountHandle})...`;
+      this.showToast(publishMsg);
 
       const authHeaders = await getAuthHeader();
       const publishRes = await fetch('/api/publish/instagram', {
@@ -2053,7 +2133,8 @@ class WargativeContentPlanner {
         },
         body: JSON.stringify({
           connectionId: connectionId,
-          imageUrl: publicImageUrl,
+          imageUrl: publicUrls.length === 1 ? publicUrls[0] : undefined,
+          imageUrls: publicUrls,
           caption: post.caption
         })
       });
@@ -2072,7 +2153,8 @@ class WargativeContentPlanner {
       this.renderCalendar();
 
       const permalinkNotice = publishData.permalink ? `<br/><a href="${publishData.permalink}" target="_blank" style="color:#60a5fa; text-decoration:underline;">Buka Postingan di Instagram &rsaquo;</a>` : '';
-      this.showToast(`🎉 Sukses! Postingan "${post.projectTitle}" telah diterbitkan ke Instagram (${accountHandle})! 🚀${permalinkNotice}`, 7000);
+      const postTypeStr = publicUrls.length > 1 ? `Carousel (${publicUrls.length} slide)` : 'Postingan';
+      this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke Instagram (${accountHandle})! 🚀${permalinkNotice}`, 7000);
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
       this.showToast(`❌ Gagal menerbitkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
