@@ -2133,7 +2133,7 @@ class WargativeContentPlanner {
   }
 
   // Executes actual publish to Meta (Instagram / Facebook) via Meta Graph API
-  private async executePublishPost(post: ScheduledPost, connectionId: string, accountHandle: string) {
+  private async executePublishPost(post: ScheduledPost, connectionId: string, accountHandle: string, isRetry = false) {
     const originalText = this.btnPublishNow?.innerHTML || '';
     let metaPublished = false;
     const isServer = await this.isServerScheduledPost(post);
@@ -2259,6 +2259,7 @@ class WargativeContentPlanner {
       }
 
       post.status = 'published';
+      post.errorMessage = null;
       post.publishedPostId = publishData.postId || null;
       saveScheduledPost(post);
       await this.fetchScheduledPosts();
@@ -2271,32 +2272,43 @@ class WargativeContentPlanner {
       this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
-      // Revert status to scheduled ONLY if stuck in publishing AND not yet published on Meta
+      // Revert status ONLY if stuck in publishing AND not yet published on Meta
       if (isServer && post.status === 'publishing' && !metaPublished) {
         try {
           const authHeaders = await getAuthHeader();
+          const revertTargetStatus = isRetry ? 'failed' : 'scheduled';
+          const patchBody: any = {
+            id: post.id,
+            status: revertTargetStatus
+          };
+          if (isRetry) {
+            patchBody.errorMessage = err?.message || 'Gagal menerbitkan postingan ke Meta Graph API saat dicoba lagi.';
+          }
           const revRes = await fetch('/api/planner/posts', {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
               ...authHeaders
             },
-            body: JSON.stringify({
-              id: post.id,
-              status: 'scheduled'
-            })
+            body: JSON.stringify(patchBody)
           });
           const revData = await revRes.json().catch(() => null);
           if (!revRes.ok || !revData?.success) {
             console.error('[Planner] Revert di catch block gagal di server:', revRes.status, revData);
           }
-          post.status = 'scheduled';
+          post.status = revertTargetStatus;
+          if (isRetry) {
+            post.errorMessage = patchBody.errorMessage;
+          }
           const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
-          if (itemInList) itemInList.status = 'scheduled';
+          if (itemInList) {
+            itemInList.status = revertTargetStatus;
+            if (isRetry) itemInList.errorMessage = patchBody.errorMessage;
+          }
           await this.fetchScheduledPosts();
           this.renderCalendar();
         } catch (revertErr) {
-          console.error('[Planner] Gagal mengembalikan status post ke scheduled di catch block:', revertErr);
+          console.error('[Planner] Gagal mengembalikan status post di catch block:', revertErr);
         }
       }
       this.showToast(`❌ Gagal menerbitkan: ${err?.message || 'Terjadi kesalahan sistem'}`, 7000);
@@ -2370,6 +2382,7 @@ class WargativeContentPlanner {
     }
 
     const canPublishNow = post.status === 'scheduled';
+    const canRetry = post.status === 'failed';
     const canEdit = post.status === 'scheduled';
     const canDelete = post.status === 'scheduled' || post.status === 'failed';
 
@@ -2410,6 +2423,11 @@ class WargativeContentPlanner {
             ${canPublishNow ? `
               <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                 <span>🚀</span><span>Publikasikan Sekarang</span>
+              </button>
+            ` : ''}
+            ${canRetry ? `
+              <button class="btn-retry-post-detail" id="btnRetryPostDetail" style="padding: 9px 16px; background: #f59e0b; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <span>🔁</span><span>Coba Publikasikan Lagi</span>
               </button>
             ` : ''}
             ${canEdit ? `
@@ -2664,6 +2682,78 @@ class WargativeContentPlanner {
         this.showToast(`❌ ${err?.message || 'Gagal memproses publikasi instan.'}`, 6000);
         btnPublishNowDetail.disabled = false;
         btnPublishNowDetail.innerHTML = originalText;
+      }
+    });
+
+    const btnRetryDetail = this.postDetailDialogOverlay.querySelector('#btnRetryPostDetail') as HTMLButtonElement | null;
+    btnRetryDetail?.addEventListener('click', async () => {
+      const confirmMsg =
+        'Pastikan postingan ini belum terbit di akun media sosial Anda. Jika Meta sebelumnya sudah berhasil menerbitkan tetapi respons gagal diterima Wargative, mencoba lagi dapat membuat postingan duplikat.\n\nApakah Anda yakin ingin mencoba mempublikasikan ulang sekarang?';
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+
+      let serverConn = post.connectionId ? this.serverConnections.find((c) => c.id === post.connectionId) : null;
+      if (!serverConn && !post.connectionId) {
+        serverConn = this.serverConnections.find((c) => c.platform === post.channel);
+      }
+
+      const targetConnId = post.connectionId || serverConn?.id;
+      if (!targetConnId) {
+        this.showToast(`⚠️ Saluran ${post.channelName} tidak ditemukan koneksinya. Silakan hubungkan kembali.`);
+        return;
+      }
+
+      if (serverConn && serverConn.status !== 'connected') {
+        this.showToast(`⚠️ Saluran ${post.channelName} belum terhubung! Silakan hubungkan dulu.`);
+        return;
+      }
+
+      // 1. Prevent multi-clicks immediately
+      btnRetryDetail.disabled = true;
+      const originalText = btnRetryDetail.innerHTML;
+      btnRetryDetail.innerHTML = `<span>⏳</span><span>Memproses...</span>`;
+
+      try {
+        // 2. Atomic claim on backend: transition 'failed' -> 'publishing'
+        const isServer = await this.isServerScheduledPost(post);
+        if (isServer) {
+          const authHeaders = await getAuthHeader();
+          const claimRes = await fetch('/api/planner/posts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              id: post.id,
+              status: 'publishing',
+              fromStatus: 'failed'
+            })
+          });
+
+          const claimData = await claimRes.json().catch(() => null);
+          if (!claimRes.ok || !claimData?.success) {
+            const msg = claimData?.message || `Postingan sedang diproses atau sudah tidak dalam status gagal (HTTP ${claimRes.status}).`;
+            throw new Error(msg);
+          }
+          post.status = 'publishing';
+          post.errorMessage = null;
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) {
+            itemInList.status = 'publishing';
+            itemInList.errorMessage = null;
+          }
+        }
+
+        this.postDetailDialogOverlay?.classList.remove('active');
+        const handle = serverConn?.accountHandle || serverConn?.accountName || post.channelName;
+        await this.executePublishPost(post, targetConnId, handle, true);
+      } catch (err: any) {
+        console.error('[Planner] Gagal retry publikasi dari detail:', err);
+        this.showToast(`❌ ${err?.message || 'Gagal memproses publikasi ulang.'}`, 6000);
+        btnRetryDetail.disabled = false;
+        btnRetryDetail.innerHTML = originalText;
       }
     });
 

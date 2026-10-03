@@ -370,10 +370,10 @@ async function handlePatch(
 
   // If not a content update, validate status parameter for existing status transitions
   if (!isContentUpdate) {
-    if (!status || !['publishing', 'published', 'scheduled'].includes(status)) {
+    if (!status || !['publishing', 'published', 'scheduled', 'failed'].includes(status)) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Parameter status tidak valid. Status yang diizinkan: publishing, published, scheduled.'
+        message: 'Parameter status tidak valid. Status yang diizinkan: publishing, published, scheduled, failed.'
       });
     }
   }
@@ -452,18 +452,26 @@ async function handlePatch(
       });
     }
 
-    // Branch B: Status Transitions (Phase 4A Backward Compatibility)
-    // 1. Transition to 'publishing' (Atomic claim for Instant Publish)
+    // Branch B: Status Transitions (Phase 4A Backward Compatibility & Phase 4B Retry)
+    // 1. Transition to 'publishing' (Atomic claim for Instant Publish or Retry)
     if (status === 'publishing') {
+      const isRetry = (req.body as any)?.fromStatus === 'failed';
+      const requiredSourceStatus = isRetry ? 'failed' : 'scheduled';
+
+      const updateData: Record<string, any> = {
+        status: 'publishing',
+        updated_at: new Date().toISOString()
+      };
+      if (isRetry) {
+        updateData.error_message = null; // Reset previous error message upon starting retry
+      }
+
       const { data: claimedPost, error: claimError } = await supabase
         .from('scheduled_posts')
-        .update({
-          status: 'publishing',
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', cleanId)
         .eq('user_id', userId)
-        .eq('status', 'scheduled')
+        .eq('status', requiredSourceStatus)
         .select('id, status')
         .maybeSingle();
 
@@ -477,15 +485,18 @@ async function handlePatch(
       }
 
       if (!claimedPost) {
+        const conflictMsg = isRetry
+          ? 'Postingan tidak dapat dipublikasikan ulang karena sedang diproses oleh sistem atau sudah tidak berstatus gagal.'
+          : 'Postingan tidak dapat dipublikasikan karena sedang diproses oleh sistem atau sudah tidak berstatus terjadwal.';
         return res.status(409).json({
           error: 'Conflict',
-          message: 'Postingan tidak dapat dipublikasikan karena sedang diproses oleh sistem atau sudah tidak berstatus terjadwal.'
+          message: conflictMsg
         });
       }
 
       return res.status(200).json({
         success: true,
-        message: 'Postingan berhasil diklaim untuk publikasi.',
+        message: isRetry ? 'Postingan berhasil diklaim untuk publikasi ulang.' : 'Postingan berhasil diklaim untuk publikasi.',
         post: claimedPost
       });
     }
@@ -556,6 +567,48 @@ async function handlePatch(
         success: true,
         message: 'Status postingan dikembalikan ke scheduled.',
         post: revertedPost
+      });
+    }
+
+    // 4. Transition to 'failed' (Retry failed before Meta publish succeeded)
+    if (status === 'failed') {
+      const errorMessage = typeof (req.body as any)?.errorMessage === 'string'
+        ? (req.body as any).errorMessage.slice(0, 1000)
+        : 'Gagal menerbitkan postingan ulang ke Meta Graph API.';
+
+      const { data: failedPost, error: failError } = await supabase
+        .from('scheduled_posts')
+        .update({
+          status: 'failed',
+          error_message: errorMessage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cleanId)
+        .eq('user_id', userId)
+        .eq('status', 'publishing')
+        .select('id, status, error_message')
+        .maybeSingle();
+
+      if (failError) {
+        console.error('[API /planner/posts] Database update error in PATCH (failed):', failError);
+        return res.status(500).json({
+          error: 'Database Error',
+          message: 'Gagal memperbarui status postingan ke failed.',
+          detail: failError.message
+        });
+      }
+
+      if (!failedPost) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'Postingan tidak dapat ditandai gagal karena status saat ini bukan publishing.'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Status postingan diperbarui menjadi failed.',
+        post: failedPost
       });
     }
   } catch (err: any) {
