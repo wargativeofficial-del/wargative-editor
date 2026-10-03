@@ -2370,46 +2370,104 @@ class WargativeContentPlanner {
     }
 
     const canPublishNow = post.status === 'scheduled';
+    const canEdit = post.status === 'scheduled';
     const canDelete = post.status === 'scheduled' || post.status === 'failed';
+
+    const { hours, minutes } = this.parseTimeInput(post.timeStr);
+    const time24 = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
     this.postDetailDialogOverlay.innerHTML = `
       <div class="post-detail-dialog">
         <button class="btn-close-modal" id="btnClosePostDetail">&times;</button>
-        <div class="post-detail-header">
-          <div class="post-detail-thumb" style="background: ${post.thumbnailColor || '#7047eb'};">
-            ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${post.projectTitle}" />` : (post.thumbnailIcon || '✨')}
+
+        <!-- VIEW MODE -->
+        <div id="postDetailViewSection">
+          <div class="post-detail-header">
+            <div class="post-detail-thumb" style="background: ${post.thumbnailColor || '#7047eb'};">
+              ${post.imageUrl ? `<img src="${post.imageUrl}" alt="${this.escapeHtml(post.projectTitle)}" />` : (post.thumbnailIcon || '✨')}
+            </div>
+            <div class="post-detail-meta">
+              <h3 class="post-detail-title">${this.escapeHtml(post.projectTitle)}</h3>
+              <span class="post-detail-channel">${post.channelIcon} ${this.escapeHtml(post.channelName)}</span>
+              <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${this.formatTimeString(post.timeStr)} WIB &bull; <strong style="color: ${statusColor};">${statusLabel}</strong></span>
+            </div>
           </div>
-          <div class="post-detail-meta">
-            <h3 class="post-detail-title">${post.projectTitle}</h3>
-            <span class="post-detail-channel">${post.channelIcon} ${post.channelName}</span>
-            <span class="post-detail-datetime">📅 ${post.dateStr} pukul ${this.formatTimeString(post.timeStr)} WIB &bull; <strong style="color: ${statusColor};">${statusLabel}</strong></span>
+
+          ${post.caption ? `<div class="post-detail-caption">${this.escapeHtml(post.caption)}</div>` : ''}
+
+          ${post.status === 'failed' ? `
+            <div class="post-detail-error" style="margin: 14px 0 6px 0; padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; color: #ef4444; font-size: 13px; line-height: 1.5;">
+              <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span>⚠️</span><span>Penyebab Kegagalan:</span>
+              </div>
+              <div style="color: #f87171; word-break: break-word;">
+                ${post.errorMessage ? this.escapeHtml(post.errorMessage) : 'Postingan gagal diterbitkan oleh sistem ke Meta Graph API.'}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="post-detail-actions">
+            ${canPublishNow ? `
+              <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <span>🚀</span><span>Publikasikan Sekarang</span>
+              </button>
+            ` : ''}
+            ${canEdit ? `
+              <button class="btn-edit-post-detail" id="btnStartEditPost" style="padding: 9px 16px; background: #6366f1; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <span>✏️</span><span>Ubah Jadwal & Caption</span>
+              </button>
+            ` : ''}
+            ${canDelete ? `
+              <button class="btn-delete-post" id="btnDeleteScheduledPost">Hapus Jadwal</button>
+            ` : ''}
+            <button class="btn-open-editor" id="btnOpenInEditor">Buka di Editor</button>
           </div>
         </div>
 
-        ${post.caption ? `<div class="post-detail-caption">${post.caption}</div>` : ''}
-
-        ${post.status === 'failed' ? `
-          <div class="post-detail-error" style="margin: 14px 0 6px 0; padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; color: #ef4444; font-size: 13px; line-height: 1.5;">
-            <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <span>⚠️</span><span>Penyebab Kegagalan:</span>
+        <!-- EDIT MODE -->
+        ${canEdit ? `
+          <div id="postDetailEditSection" style="display: none;">
+            <div style="margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 6px;">
+                <span>✏️</span><span>Ubah Jadwal & Caption</span>
+              </h3>
+              <span style="font-size: 12px; font-weight: 600; color: #8b5cf6;">⏰ Terjadwal</span>
             </div>
-            <div style="color: #f87171; word-break: break-word;">
-              ${post.errorMessage ? this.escapeHtml(post.errorMessage) : 'Postingan gagal diterbitkan oleh sistem ke Meta Graph API.'}
+
+            <div style="margin-bottom: 14px; padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #334155;">
+                <span>${post.channelIcon}</span>
+                <span>${this.escapeHtml(post.channelName)}</span>
+              </div>
+              <span style="font-size: 11px; padding: 2px 8px; background: #e2e8f0; color: #475569; border-radius: 9999px; font-weight: 600;">Platform Tetap</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label for="editPostDate" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #4b5563;">Tanggal Terjadwal</label>
+                <input type="date" id="editPostDate" value="${post.dateStr}" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; box-sizing: border-box;" />
+              </div>
+              <div>
+                <label for="editPostTime" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #4b5563;">Jam (WIB)</label>
+                <input type="time" id="editPostTime" value="${time24}" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; box-sizing: border-box;" />
+              </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+              <label for="editPostCaption" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: #4b5563;">Caption Postingan</label>
+              <textarea id="editPostCaption" rows="4" style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; line-height: 1.5; resize: vertical; box-sizing: border-box;" placeholder="Tulis caption postingan..."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button type="button" id="btnCancelEditPost" style="padding: 9px 16px; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;">
+                Batal
+              </button>
+              <button type="button" id="btnSaveEditPost" style="padding: 9px 16px; background: #6366f1; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <span>💾</span><span>Simpan Perubahan</span>
+              </button>
             </div>
           </div>
         ` : ''}
-
-        <div class="post-detail-actions">
-          ${canPublishNow ? `
-            <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-              <span>🚀</span><span>Publikasikan Sekarang</span>
-            </button>
-          ` : ''}
-          ${canDelete ? `
-            <button class="btn-delete-post" id="btnDeleteScheduledPost">Hapus Jadwal</button>
-          ` : ''}
-          <button class="btn-open-editor" id="btnOpenInEditor">Buka di Editor</button>
-        </div>
       </div>
     `;
 
@@ -2419,6 +2477,133 @@ class WargativeContentPlanner {
     btnClose?.addEventListener('click', () => {
       this.postDetailDialogOverlay.classList.remove('active');
     });
+
+    // Safely assign caption value to textarea via DOM property to avoid any HTML escaping corruption
+    const editCaptionInput = this.postDetailDialogOverlay.querySelector('#editPostCaption') as HTMLTextAreaElement | null;
+    if (editCaptionInput) {
+      editCaptionInput.value = post.caption || '';
+    }
+
+    // Toggle between View and Edit modes
+    if (canEdit) {
+      const viewSection = this.postDetailDialogOverlay.querySelector('#postDetailViewSection') as HTMLElement | null;
+      const editSection = this.postDetailDialogOverlay.querySelector('#postDetailEditSection') as HTMLElement | null;
+      const btnStartEdit = this.postDetailDialogOverlay.querySelector('#btnStartEditPost');
+      const btnCancelEdit = this.postDetailDialogOverlay.querySelector('#btnCancelEditPost') as HTMLButtonElement | null;
+      const btnSaveEdit = this.postDetailDialogOverlay.querySelector('#btnSaveEditPost') as HTMLButtonElement | null;
+
+      btnStartEdit?.addEventListener('click', () => {
+        if (viewSection) viewSection.style.display = 'none';
+        if (editSection) editSection.style.display = 'block';
+      });
+
+      btnCancelEdit?.addEventListener('click', () => {
+        const editDateInput = this.postDetailDialogOverlay?.querySelector('#editPostDate') as HTMLInputElement | null;
+        const editTimeInput = this.postDetailDialogOverlay?.querySelector('#editPostTime') as HTMLInputElement | null;
+        if (editDateInput) editDateInput.value = post.dateStr;
+        if (editTimeInput) editTimeInput.value = time24;
+        if (editCaptionInput) editCaptionInput.value = post.caption || '';
+
+        if (editSection) editSection.style.display = 'none';
+        if (viewSection) viewSection.style.display = 'block';
+      });
+
+      btnSaveEdit?.addEventListener('click', async () => {
+        const editDateInput = this.postDetailDialogOverlay?.querySelector('#editPostDate') as HTMLInputElement | null;
+        const editTimeInput = this.postDetailDialogOverlay?.querySelector('#editPostTime') as HTMLInputElement | null;
+        const currentCaptionInput = this.postDetailDialogOverlay?.querySelector('#editPostCaption') as HTMLTextAreaElement | null;
+
+        const dateVal = editDateInput?.value.trim();
+        const timeVal = editTimeInput?.value.trim();
+        const captionVal = currentCaptionInput?.value ?? '';
+
+        if (!dateVal) {
+          this.showToast('⚠️ Tanggal jadwal wajib diisi!');
+          return;
+        }
+
+        if (!timeVal) {
+          this.showToast('⚠️ Jam jadwal wajib diisi!');
+          return;
+        }
+
+        const formattedTime = timeVal.length === 5 ? `${timeVal}:00` : timeVal;
+        const isoWib = `${dateVal}T${formattedTime}+07:00`;
+        const targetDate = new Date(isoWib);
+
+        if (isNaN(targetDate.getTime())) {
+          this.showToast('⚠️ Format tanggal atau jam tidak valid!');
+          return;
+        }
+
+        if (targetDate.getTime() <= Date.now()) {
+          this.showToast('⚠️ Waktu jadwal baru harus berada di masa depan!');
+          return;
+        }
+
+        btnSaveEdit.disabled = true;
+        if (btnCancelEdit) btnCancelEdit.disabled = true;
+        const originalSaveText = btnSaveEdit.innerHTML;
+        btnSaveEdit.innerHTML = `<span>⏳</span><span>Menyimpan...</span>`;
+
+        try {
+          const isServer = await this.isServerScheduledPost(post);
+          if (isServer || this.currentUserId) {
+            const authHeaders = await getAuthHeader();
+            const res = await fetch('/api/planner/posts', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...authHeaders
+              },
+              body: JSON.stringify({
+                id: post.id,
+                caption: captionVal,
+                scheduledAt: isoWib
+              })
+            });
+
+            const resData = await res.json().catch(() => null);
+
+            if (res.status === 409) {
+              const conflictMsg = resData?.message || 'Postingan sudah tidak berstatus scheduled atau sedang diproses oleh sistem.';
+              this.showToast(`⚠️ ${conflictMsg}`, 6000);
+              await this.fetchScheduledPosts();
+              this.renderCalendar();
+              this.postDetailDialogOverlay?.classList.remove('active');
+              return;
+            }
+
+            if (!res.ok || !resData?.success) {
+              const errMsg = resData?.message || resData?.error || `Gagal menyimpan perubahan (HTTP ${res.status})`;
+              throw new Error(errMsg);
+            }
+
+            this.postDetailDialogOverlay?.classList.remove('active');
+            await this.fetchScheduledPosts();
+            this.renderCalendar();
+            this.showToast('✅ Jadwal dan caption postingan berhasil diperbarui');
+            return;
+          }
+
+          // Local / Offline fallback
+          post.caption = captionVal;
+          post.dateStr = dateVal;
+          const { hours: h, minutes: m } = this.parseTimeInput(timeVal);
+          post.timeStr = this.formatTo12Hour(h, m);
+          saveScheduledPost(post);
+          this.postDetailDialogOverlay?.classList.remove('active');
+          this.renderCalendar();
+          this.showToast('✅ Jadwal dan caption postingan berhasil diperbarui');
+        } catch (err: any) {
+          console.error('[Planner] Gagal menyimpan perubahan post:', err);
+          this.showToast(`❌ ${err?.message || 'Gagal menyimpan perubahan jadwal.'}`, 6000);
+          btnSaveEdit.disabled = false;
+          if (btnCancelEdit) btnCancelEdit.disabled = false;
+          btnSaveEdit.innerHTML = originalSaveText;
+        }
+      });
+    }
 
     const btnPublishNowDetail = this.postDetailDialogOverlay.querySelector('#btnPublishNowDetail') as HTMLButtonElement | null;
     btnPublishNowDetail?.addEventListener('click', async () => {
