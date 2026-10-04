@@ -281,11 +281,13 @@ export function saveProjectMeta(item: ProjectItem): void {
   }
 }
 
-export function saveProjectScene(id: string, sceneString: string): void {
+export function saveProjectScene(id: string, sceneString: string): boolean {
   try {
     localStorage.setItem(SCENE_PREFIX + id, sceneString);
+    return true;
   } catch (e) {
     console.error('Failed to save scene data:', e);
+    return false;
   }
 }
 
@@ -303,19 +305,32 @@ export function duplicateProject(id: string): ProjectItem | null {
     const project = getProject(id);
     if (!project) return null;
 
+    // 1. Verify source scene exists and is readable
+    const sceneData = getProjectScene(id);
+    if (!sceneData) {
+      console.warn(`[duplicateProject] Source project scene not found for ${id}`);
+      return null;
+    }
+
     const newId = 'proj_' + Date.now();
+
+    // 2. Copy scene to newId and verify storage integrity
+    const saved = saveProjectScene(newId, sceneData);
+    if (!saved || getProjectScene(newId) !== sceneData) {
+      console.error(`[duplicateProject] Failed to persist duplicate scene for ${newId}`);
+      try {
+        localStorage.removeItem(SCENE_PREFIX + newId);
+      } catch (err) {}
+      return null;
+    }
+
+    // 3. Only after scene is verified, create and save new project metadata
     const copyItem: ProjectItem = {
       ...project,
       id: newId,
       title: project.title.startsWith('Copy of ') ? project.title : 'Copy of ' + project.title,
       updatedAt: Date.now()
     };
-
-    // Copy scene data if exists
-    const sceneData = getProjectScene(id);
-    if (sceneData) {
-      saveProjectScene(newId, sceneData);
-    }
 
     saveProjectMeta(copyItem);
     return copyItem;

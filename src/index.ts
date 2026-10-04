@@ -48,20 +48,24 @@ CreativeEditorSDK.create('#cesdk_container', config)
     const isAiGen = urlParams.get('source') === 'ai_gen';
 
     // Check for AI Transfer Design from Wargative AI Magic Studio
+    // STRICT GUARD: AI Transfer is ONLY active in explicit AI flow (source === 'ai_gen')
+    // Regular, duplicate, imported, and normal projects MUST NOT read global AI transfer.
     let aiTransferData: any = null;
-    const aiTransferRaw = localStorage.getItem('wargative_ai_transfer_design');
-    if (aiTransferRaw) {
-      try {
-        const parsed = JSON.parse(aiTransferRaw);
-        if (parsed.projectId === projectId || isAiGen) {
-          aiTransferData = parsed;
-        }
-      } catch (e) {}
+    if (isAiGen) {
+      const aiTransferRaw = localStorage.getItem('wargative_ai_transfer_design');
+      if (aiTransferRaw) {
+        try {
+          const parsed = JSON.parse(aiTransferRaw);
+          if (parsed && (!projectId || parsed.projectId === projectId)) {
+            aiTransferData = parsed;
+          }
+        } catch (e) {}
+      }
     }
 
     // If no project ID is provided in the URL, create a new persistent project ID
     if (!projectId) {
-      projectId = aiTransferData?.projectId || 'proj_' + Date.now();
+      projectId = (isAiGen ? aiTransferData?.projectId : null) || 'proj_' + Date.now();
       urlParams.set('id', projectId);
       window.history.replaceState(
         null,
@@ -72,9 +76,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
     // Resolve project meta
     let projectMeta = getProject(projectId);
-    const title = nameParam || aiTransferData?.headline || projectMeta?.title || 'Untitled Design';
-    const width = widthParam ? parseFloat(widthParam) : (aiTransferData?.width || projectMeta?.width || 1080);
-    const height = heightParam ? parseFloat(heightParam) : (aiTransferData?.height || projectMeta?.height || 1080);
+    const title = nameParam || (isAiGen ? aiTransferData?.headline : null) || projectMeta?.title || 'Untitled Design';
+    const width = widthParam ? parseFloat(widthParam) : ((isAiGen ? aiTransferData?.width : null) || projectMeta?.width || 1080);
+    const height = heightParam ? parseFloat(heightParam) : ((isAiGen ? aiTransferData?.height : null) || projectMeta?.height || 1080);
     const format = `${width} x ${height} px`;
 
     if (!projectMeta) {
@@ -85,10 +89,10 @@ CreativeEditorSDK.create('#cesdk_container', config)
         width,
         height,
         updatedAt: Date.now(),
-        thumbnailColor: aiTransferData ? 'linear-gradient(135deg, #0c2340 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
-        thumbnailIcon: aiTransferData ? '✨' : '🎨',
-        badgeText: aiTransferData ? 'AI Design' : 'Design',
-        badgeBg: aiTransferData ? '#7c3aed' : '#6366f1'
+        thumbnailColor: isAiGen && aiTransferData ? 'linear-gradient(135deg, #0c2340 0%, #1d4ed8 100%)' : 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+        thumbnailIcon: isAiGen && aiTransferData ? '✨' : '🎨',
+        badgeText: isAiGen && aiTransferData ? 'AI Design' : 'Design',
+        badgeBg: isAiGen && aiTransferData ? '#7c3aed' : '#6366f1'
       };
       saveProjectMeta(projectMeta);
     }
@@ -402,7 +406,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
     }
 
     function syncSceneToAiStudio() {
-      if (isSyncingFromAi) return;
+      if (!isAiGen || isSyncingFromAi) return;
 
       if (sceneSyncDebounce) clearTimeout(sceneSyncDebounce);
       sceneSyncDebounce = setTimeout(() => {
@@ -478,7 +482,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
             if (transferRaw) {
               try {
                 const parsed = JSON.parse(transferRaw);
-                if (parsed.projectId === projectId || !parsed.projectId) {
+                if (parsed.projectId === projectId) {
                   if (headline) parsed.headline = headline;
                   if (subheadline) parsed.subheadline = subheadline;
                   if (badge) parsed.badge = badge;
@@ -518,20 +522,20 @@ CreativeEditorSDK.create('#cesdk_container', config)
           showLegacyBlobNotification();
         }
 
-        // CRITICAL FIX: If aiTransferData is present, sync any updated text from AI Studio into scene blocks!
-        if (aiTransferData) {
+        // CRITICAL FIX: If explicit AI flow and aiTransferData is present, sync any updated text from AI Studio into scene blocks!
+        if (isAiGen && aiTransferData) {
           syncAiDataToSceneBlocks(aiTransferData);
         }
       } catch (err) {
         console.error('[Wargative AutoSave] Failed to restore saved scene:', err);
-        if (aiTransferData) {
+        if (isAiGen && aiTransferData) {
           await buildAiDesignScene(cesdk, aiTransferData, width, height);
         } else {
           await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
         }
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
       }
-    } else if (aiTransferData) {
+    } else if (isAiGen && aiTransferData) {
       // BUILD NATIVE AI DESIGN SCENE (Canva Style Layered Elements)
       console.log('[Wargative] Building native AI design scene:', aiTransferData);
       try {
@@ -623,35 +627,40 @@ CreativeEditorSDK.create('#cesdk_container', config)
       });
     } catch (e) {}
 
-    // Listen to real-time changes coming from AI Studio
+    // Listen to real-time changes coming from AI Studio (ONLY for explicit AI projects with matching projectId)
     syncChannel.onmessage = (event) => {
+      if (!isAiGen) return;
       const msg = event.data;
       if (!msg || msg.type !== 'AI_TO_EDITOR') return;
-      if (msg.projectId && msg.projectId !== projectId) return;
+      if (!msg.projectId || msg.projectId !== projectId) return;
       console.log('[Wargative Sync] Received AI_TO_EDITOR update:', msg.data);
       syncAiDataToSceneBlocks(msg.data);
     };
 
-    // Fallback sync via localStorage storage event
+    // Fallback sync via localStorage storage event (ONLY for this specific project)
     window.addEventListener('storage', (e) => {
-      if (e.key === `wargative_ai_live_sync_${projectId}` || e.key === 'wargative_ai_transfer_design') {
+      if (!isAiGen) return;
+      if (e.key === `wargative_ai_live_sync_${projectId}`) {
         if (!e.newValue) return;
         try {
           const parsed = JSON.parse(e.newValue);
           const data = parsed.data || parsed;
-          syncAiDataToSceneBlocks(data);
+          if (data && (!data.projectId || data.projectId === projectId)) {
+            syncAiDataToSceneBlocks(data);
+          }
         } catch (err) {}
       }
     });
 
-    // Focus listener: When user switches back to Editor tab, reload latest AI changes
+    // Focus listener: When user switches back to Editor tab, reload latest AI changes ONLY for explicit AI projects
     window.addEventListener('focus', () => {
-      const raw = localStorage.getItem(`wargative_ai_live_sync_${projectId}`) || localStorage.getItem('wargative_ai_transfer_design');
+      if (!isAiGen) return;
+      const raw = localStorage.getItem(`wargative_ai_live_sync_${projectId}`);
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
           const data = parsed.data || parsed;
-          if (data && data.headline) {
+          if (data && data.headline && (!data.projectId || data.projectId === projectId)) {
             syncAiDataToSceneBlocks(data);
           }
         } catch (err) {}
