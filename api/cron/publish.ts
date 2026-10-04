@@ -180,6 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 6. Execute publishing via shared publisher
     try {
       let publishedPostId: string;
+      let publishedPostUrl: string | null = null;
       let accountIdentifier: string;
 
       if (post.platform === 'facebook') {
@@ -190,6 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           caption: post.caption || undefined
         });
         publishedPostId = result.postId;
+        publishedPostUrl = result.permalink || null;
         accountIdentifier = result.accountName || result.accountHandle;
         console.log(`[Cron Publisher] Berhasil menerbitkan post ${post.id} ke Halaman Facebook (${accountIdentifier}), Post ID: ${result.postId}`);
       } else {
@@ -200,6 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           caption: post.caption || undefined
         });
         publishedPostId = result.postId;
+        publishedPostUrl = result.permalink || null;
         accountIdentifier = `@${result.accountHandle}`;
         console.log(`[Cron Publisher] Berhasil menerbitkan post ${post.id} ke Instagram (${accountIdentifier}), Post ID: ${result.postId}`);
       }
@@ -210,6 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .update({
           status: 'published',
           published_post_id: publishedPostId,
+          published_post_url: publishedPostUrl,
           error_message: null,
           updated_at: new Date().toISOString()
         })

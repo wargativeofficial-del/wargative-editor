@@ -1260,6 +1260,7 @@ class WargativeContentPlanner {
                 status: (['scheduled', 'publishing', 'published', 'failed'].includes(p.status) ? p.status : 'scheduled') as ScheduledPost['status'],
                 errorMessage: p.error_message || null,
                 publishedPostId: p.published_post_id || null,
+                publishedPostUrl: p.published_post_url || null,
                 createdAt: new Date(p.created_at).getTime()
               };
             });
@@ -2246,7 +2247,8 @@ class WargativeContentPlanner {
           body: JSON.stringify({
             id: post.id,
             status: 'published',
-            publishedPostId: publishData.postId || null
+            publishedPostId: publishData.postId || null,
+            publishedPostUrl: publishData.permalink || null
           })
         });
 
@@ -2261,6 +2263,7 @@ class WargativeContentPlanner {
       post.status = 'published';
       post.errorMessage = null;
       post.publishedPostId = publishData.postId || null;
+      post.publishedPostUrl = publishData.permalink || null;
       saveScheduledPost(post);
       await this.fetchScheduledPosts();
       this.closeScheduleModal();
@@ -2365,6 +2368,37 @@ class WargativeContentPlanner {
     return div.innerHTML;
   }
 
+  private getSafeLivePostUrl(post: ScheduledPost): string | null {
+    if (post.status !== 'published') return null;
+
+    if (post.publishedPostUrl && typeof post.publishedPostUrl === 'string') {
+      const trimmed = post.publishedPostUrl.trim();
+      if (trimmed.startsWith('https://')) {
+        try {
+          const parsed = new URL(trimmed);
+          const hostname = parsed.hostname.toLowerCase();
+          const isFacebook = hostname === 'facebook.com' || hostname.endsWith('.facebook.com');
+          const isInstagram = hostname === 'instagram.com' || hostname.endsWith('.instagram.com');
+          if (isFacebook || isInstagram) {
+            return trimmed;
+          }
+        } catch {}
+      }
+    }
+
+    // Fallback for older Facebook posts before published_post_url was stored:
+    // Only if publishedPostId is valid digits/underscore (e.g. pageId_postId or photoId)
+    // For Instagram: never guess or construct URL from numeric publishedPostId
+    if (post.channel === 'facebook' && post.publishedPostId && typeof post.publishedPostId === 'string') {
+      const cleanId = post.publishedPostId.trim();
+      if (/^[0-9_]+$/.test(cleanId)) {
+        return `https://www.facebook.com/${cleanId}`;
+      }
+    }
+
+    return null;
+  }
+
   private openPostDetailModal(post: ScheduledPost) {
     if (!this.postDetailDialogOverlay) return;
 
@@ -2385,6 +2419,7 @@ class WargativeContentPlanner {
     const canRetry = post.status === 'failed';
     const canEdit = post.status === 'scheduled';
     const canDelete = post.status === 'scheduled' || post.status === 'failed';
+    const livePostUrl = this.getSafeLivePostUrl(post);
 
     const { hours, minutes } = this.parseTimeInput(post.timeStr);
     const time24 = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
@@ -2420,6 +2455,11 @@ class WargativeContentPlanner {
           ` : ''}
 
           <div class="post-detail-actions">
+            ${livePostUrl ? `
+              <a href="${this.escapeHtml(livePostUrl)}" target="_blank" rel="noopener noreferrer" class="btn-live-post-detail" style="text-decoration: none; padding: 9px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box;">
+                <span>🔗</span><span>Buka Postingan</span>
+              </a>
+            ` : ''}
             ${canPublishNow ? `
               <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                 <span>🚀</span><span>Publikasikan Sekarang</span>

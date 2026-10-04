@@ -26,6 +26,33 @@ import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
  */
 const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
 
+/**
+ * Strict validator for published post URLs (Facebook & Instagram official domains only)
+ */
+function validateLivePostUrl(url: unknown): string | null {
+  if (typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('https://')) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:') return null;
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Allowed official Meta domains and subdomains
+    const isFacebook = hostname === 'facebook.com' || hostname.endsWith('.facebook.com');
+    const isInstagram = hostname === 'instagram.com' || hostname.endsWith('.instagram.com');
+
+    if (isFacebook || isInstagram) {
+      return trimmed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 1. Authenticate user from session JWT
   const user = await authenticateRequest(req, res);
@@ -75,6 +102,7 @@ async function handleGet(
         scheduled_at,
         status,
         published_post_id,
+        published_post_url,
         error_message,
         created_at,
         updated_at,
@@ -313,7 +341,7 @@ async function handlePatch(
   userId: string,
   supabase: ReturnType<typeof getSupabaseAdmin>
 ) {
-  const { id, status, publishedPostId, caption, scheduledAt } = req.body || {};
+  const { id, status, publishedPostId, publishedPostUrl, caption, scheduledAt } = req.body || {};
 
   if (!id || typeof id !== 'string' || id.trim().length === 0) {
     return res.status(400).json({
@@ -503,18 +531,20 @@ async function handlePatch(
 
     // 2. Transition to 'published' (Instant Publish succeeded)
     if (status === 'published') {
+      const validatedUrl = validateLivePostUrl(publishedPostUrl);
       const { data: publishedPost, error: pubError } = await supabase
         .from('scheduled_posts')
         .update({
           status: 'published',
           published_post_id: typeof publishedPostId === 'string' ? publishedPostId.trim() : null,
+          published_post_url: validatedUrl,
           error_message: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', cleanId)
         .eq('user_id', userId)
         .in('status', ['publishing', 'scheduled'])
-        .select('id, status, published_post_id')
+        .select('id, status, published_post_id, published_post_url')
         .maybeSingle();
 
       if (pubError) {

@@ -47,6 +47,7 @@ export interface ScheduledPost {
   status: ScheduledPostStatus;
   errorMessage?: string | null;
   publishedPostId?: string | null;
+  publishedPostUrl?: string | null;
   createdAt: number;
 }
 
