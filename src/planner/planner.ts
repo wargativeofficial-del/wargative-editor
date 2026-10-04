@@ -2235,29 +2235,67 @@ class WargativeContentPlanner {
       // Meta successfully published the post
       metaPublished = true;
 
-      // Successful publish: synchronize database record to 'published' with published_post_id
-      if (isServer) {
+      // Synchronize database record to 'published' with published_post_id & published_post_url
+      // Case 1: Existing server scheduled post -> PATCH to status 'published'
+      // Case 2: New content with local ID post_* -> POST new row with status 'published'
+      let dbSyncSuccess = true;
+      try {
         const authHeaders = await getAuthHeader();
-        const patchRes = await fetch('/api/planner/posts', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...authHeaders
-          },
-          body: JSON.stringify({
-            id: post.id,
-            status: 'published',
-            publishedPostId: publishData.postId || null,
-            publishedPostUrl: publishData.permalink || null
-          })
-        });
+        if (isServer) {
+          const patchRes = await fetch('/api/planner/posts', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              id: post.id,
+              status: 'published',
+              publishedPostId: publishData.postId || null,
+              publishedPostUrl: publishData.permalink || null
+            })
+          });
 
-        const patchData = await patchRes.json().catch(() => null);
-        if (!patchRes.ok || !patchData?.success) {
-          const errMsg = patchData?.message || `Gagal sinkronisasi status ke database (HTTP ${patchRes.status}).`;
-          console.error('[Planner] Gagal memperbarui status published ke database:', errMsg);
-          throw new Error(errMsg);
+          const patchData = await patchRes.json().catch(() => null);
+          if (!patchRes.ok || !patchData?.success) {
+            const errMsg = patchData?.message || `HTTP ${patchRes.status}`;
+            console.error('[Planner] Gagal memperbarui status published ke database:', errMsg);
+            dbSyncSuccess = false;
+          }
+        } else if (this.currentUserId) {
+          const finalMediaUrl = publicUrls.length === 1 ? publicUrls[0] : JSON.stringify(publicUrls);
+          const postRes = await fetch('/api/planner/posts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeaders
+            },
+            body: JSON.stringify({
+              connectionId: finalConnectionId,
+              platform: post.channel,
+              caption: post.caption,
+              mediaUrl: finalMediaUrl,
+              mediaUrls: publicUrls,
+              scheduledAt: new Date().toISOString(),
+              status: 'published',
+              publishedPostId: publishData.postId || null,
+              publishedPostUrl: publishData.permalink || null
+            })
+          });
+
+          const postData = await postRes.json().catch(() => null);
+          if (!postRes.ok || !postData?.success) {
+            const errMsg = postData?.message || `HTTP ${postRes.status}`;
+            console.error('[Planner] Gagal mencatat instant publish ke database:', errMsg);
+            dbSyncSuccess = false;
+          } else if (postData?.post?.id) {
+            post.id = postData.post.id;
+            post.isServer = true;
+          }
         }
+      } catch (dbErr: any) {
+        console.error('[Planner] Exception saat mencatat postingan ke database:', dbErr);
+        dbSyncSuccess = false;
       }
 
       post.status = 'published';
@@ -2272,7 +2310,12 @@ class WargativeContentPlanner {
       const permalinkLabel = isFacebook ? 'Buka Postingan di Facebook' : 'Buka Postingan di Instagram';
       const permalinkNotice = publishData.permalink ? `<br/><a href="${publishData.permalink}" target="_blank" style="color:#60a5fa; text-decoration:underline;">${permalinkLabel} &rsaquo;</a>` : '';
       const postTypeStr = publicUrls.length > 1 ? (isFacebook ? `Multi-foto (${publicUrls.length} slide)` : `Carousel (${publicUrls.length} slide)`) : 'Postingan';
-      this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
+
+      if (!dbSyncSuccess) {
+        this.showToast(`⚠️ Konten berhasil diterbitkan ke ${channelLabel} (${accountHandle}), namun gagal dicatat otomatis ke kalender Planner.${permalinkNotice}`, 9000);
+      } else {
+        this.showToast(`🎉 Sukses! ${postTypeStr} "${post.projectTitle}" telah diterbitkan ke ${channelLabel} (${accountHandle})! 🚀${permalinkNotice}`, 7000);
+      }
     } catch (err: any) {
       console.error('[Planner] Publish error:', err);
       // Revert status ONLY if stuck in publishing AND not yet published on Meta

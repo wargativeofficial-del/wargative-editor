@@ -151,7 +151,16 @@ async function handlePost(
   userId: string,
   supabase: ReturnType<typeof getSupabaseAdmin>
 ) {
-  const { connectionId, caption, mediaUrl, mediaUrls, scheduledAt } = req.body || {};
+  const {
+    connectionId,
+    caption,
+    mediaUrl,
+    mediaUrls,
+    scheduledAt,
+    status,
+    publishedPostId,
+    publishedPostUrl
+  } = req.body || {};
 
   // Validation: connectionId
   if (!connectionId || typeof connectionId !== 'string' || connectionId.trim().length === 0) {
@@ -214,35 +223,49 @@ async function handlePost(
     }
   }
 
-  // Validation: scheduledAt (Must be valid future date)
-  if (!scheduledAt || typeof scheduledAt !== 'string') {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Parameter scheduledAt wajib disertakan dalam format ISO 8601 (contoh: 2026-10-05T14:30:00.000Z).'
-    });
-  }
+  const isInstantPublished = status === 'published';
+  let finalScheduledAt: string;
 
-  const trimmedPostDate = scheduledAt.trim();
-  if (!ISO_8601_REGEX.test(trimmedPostDate)) {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Format scheduledAt tidak valid. Gunakan format ISO 8601 resmi (contoh: 2026-10-05T14:30:00Z atau 2026-10-05T14:30:00+07:00).'
-    });
-  }
+  if (isInstantPublished) {
+    // For instant published posts, scheduled_at represents the publish timestamp (defaults to NOW)
+    if (scheduledAt && typeof scheduledAt === 'string' && ISO_8601_REGEX.test(scheduledAt.trim())) {
+      finalScheduledAt = new Date(scheduledAt.trim()).toISOString();
+    } else {
+      finalScheduledAt = new Date().toISOString();
+    }
+  } else {
+    // Validation: scheduledAt (Must be valid future date) for regular scheduled posts
+    if (!scheduledAt || typeof scheduledAt !== 'string') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Parameter scheduledAt wajib disertakan dalam format ISO 8601 (contoh: 2026-10-05T14:30:00.000Z).'
+      });
+    }
 
-  const parsedDate = new Date(trimmedPostDate);
-  if (isNaN(parsedDate.getTime())) {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Nilai tanggal atau waktu pada parameter scheduledAt tidak valid.'
-    });
-  }
+    const trimmedPostDate = scheduledAt.trim();
+    if (!ISO_8601_REGEX.test(trimmedPostDate)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Format scheduledAt tidak valid. Gunakan format ISO 8601 resmi (contoh: 2026-10-05T14:30:00Z atau 2026-10-05T14:30:00+07:00).'
+      });
+    }
 
-  if (parsedDate.getTime() <= Date.now()) {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Waktu scheduledAt harus berada di masa depan.'
-    });
+    const parsedDate = new Date(trimmedPostDate);
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Nilai tanggal atau waktu pada parameter scheduledAt tidak valid.'
+      });
+    }
+
+    if (parsedDate.getTime() <= Date.now()) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Waktu scheduledAt harus berada di masa depan.'
+      });
+    }
+
+    finalScheduledAt = parsedDate.toISOString();
   }
 
   try {
@@ -276,6 +299,11 @@ async function handlePost(
       });
     }
 
+    const finalPostId = isInstantPublished && typeof publishedPostId === 'string' && publishedPostId.trim().length > 0
+      ? publishedPostId.trim()
+      : null;
+    const finalPostUrl = isInstantPublished ? validateLivePostUrl(publishedPostUrl) : null;
+
     // Insert scheduled post record
     const { data: insertedPost, error: insertError } = await supabase
       .from('scheduled_posts')
@@ -285,8 +313,11 @@ async function handlePost(
         platform: connection.platform, // Determines either instagram or facebook
         caption: typeof caption === 'string' ? caption.trim() : null,
         media_url: resolvedMediaUrl,
-        scheduled_at: parsedDate.toISOString(),
-        status: 'scheduled'
+        scheduled_at: finalScheduledAt,
+        status: isInstantPublished ? 'published' : 'scheduled',
+        published_post_id: finalPostId,
+        published_post_url: finalPostUrl,
+        error_message: null
       })
       .select(`
         id,
@@ -297,6 +328,8 @@ async function handlePost(
         media_url,
         scheduled_at,
         status,
+        published_post_id,
+        published_post_url,
         created_at,
         updated_at
       `)
@@ -306,14 +339,18 @@ async function handlePost(
       console.error('[API /planner/posts] Database insert error:', insertError);
       return res.status(500).json({
         error: 'Database Error',
-        message: 'Gagal menyimpan postingan terjadwal ke database.',
+        message: isInstantPublished
+          ? 'Gagal mencatat postingan yang telah diterbitkan ke database.'
+          : 'Gagal menyimpan postingan terjadwal ke database.',
         detail: insertError?.message
       });
     }
 
     return res.status(201).json({
       success: true,
-      message: 'Postingan berhasil dijadwalkan.',
+      message: isInstantPublished
+        ? 'Postingan berhasil diterbitkan dan dicatat ke kalender.'
+        : 'Postingan berhasil dijadwalkan.',
       post: insertedPost
     });
   } catch (err: any) {
