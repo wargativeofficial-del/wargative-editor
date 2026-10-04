@@ -126,8 +126,8 @@ CreativeEditorSDK.create('#cesdk_container', config)
       transition: all 0.2s ease;
     `;
     autoSaveBadge.innerHTML = `
-      <span id="as-icon" style="color: #10b981; font-size: 13px;">✓</span>
-      <span id="as-text">All changes saved</span>
+      <span id="as-icon" style="color: #94a3b8; font-size: 13px;">✓</span>
+      <span id="as-text">Saved locally</span>
     `;
     document.body.appendChild(autoSaveBadge);
 
@@ -138,6 +138,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
     let needsSaveAgain = false;
     let currentSaveVersion = 0;
     let lastSavedVersion = 0;
+    let activeSavePromise: Promise<boolean> | null = null;
     let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Informative notification for legacy projects containing local blob: images
@@ -181,68 +182,90 @@ CreativeEditorSDK.create('#cesdk_container', config)
       }
     };
 
-    const performAutoSave = async () => {
-      // If already saving, queue a follow-up save so new edits are never dropped
+    const performAutoSave = async (): Promise<boolean> => {
+      // If already saving, queue a follow-up save and return the active promise so callers can await the entire chain
       if (isSaving) {
         needsSaveAgain = true;
-        return;
+        return activeSavePromise || Promise.resolve(false);
       }
       isSaving = true;
 
-      try {
-        // Sequential re-entrant loop: continue processing while there are pending changes or newer versions
-        do {
-          needsSaveAgain = false;
-          // Capture the exact edit version at the start of this snapshot attempt
-          const targetVersion = currentSaveVersion;
+      activeSavePromise = (async () => {
+        let success = true;
+        try {
+          // Sequential re-entrant loop: continue processing while there are pending changes or newer versions
+          do {
+            needsSaveAgain = false;
+            // Capture the exact edit version at the start of this snapshot attempt
+            const targetVersion = currentSaveVersion;
 
-          if (asIcon && asText) {
-            asIcon.style.color = '#3b82f6';
-            asIcon.textContent = '⟳';
-            asText.textContent = 'Saving...';
-          }
-
-          // Await fresh scene string snapshot from CE.SDK engine
-          const sceneString = await cesdk.engine.scene.saveToString();
-
-          // Monotonic guard: only persist if this snapshot is newer than or equal to what was previously saved
-          if (targetVersion >= lastSavedVersion) {
-            saveProjectScene(projectId!, sceneString);
-            lastSavedVersion = targetVersion;
-
-            // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
-            if (!sceneString.includes('blob:')) {
-              const alertEl = document.getElementById('wargative-legacy-blob-alert');
-              if (alertEl) alertEl.remove();
+            if (asIcon && asText) {
+              asIcon.style.color = '#3b82f6';
+              asIcon.textContent = '⟳';
+              asText.textContent = 'Saving...';
             }
 
-            // Update project store timestamp (strict check: prevent stale fallback to previous project)
-            const currentMeta = getProject(projectId!) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
-            if (currentMeta) {
-              currentMeta.updatedAt = Date.now();
-              saveProjectMeta(currentMeta);
+            // Await fresh scene string snapshot from CE.SDK engine
+            const sceneString = await cesdk.engine.scene.saveToString();
+
+            // Monotonic guard: only persist if this snapshot is newer than or equal to what was previously saved
+            if (targetVersion >= lastSavedVersion) {
+              saveProjectScene(projectId!, sceneString);
+              lastSavedVersion = targetVersion;
+
+              // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
+              if (!sceneString.includes('blob:')) {
+                const alertEl = document.getElementById('wargative-legacy-blob-alert');
+                if (alertEl) alertEl.remove();
+              }
+
+              // Update project store timestamp (strict check: prevent stale fallback to previous project)
+              const currentMeta = getProject(projectId!) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
+              if (currentMeta) {
+                currentMeta.updatedAt = Date.now();
+                saveProjectMeta(currentMeta);
+              }
+            }
+          } while (needsSaveAgain || lastSavedVersion < currentSaveVersion);
+
+          // Badge ONLY turns green if all pending edits have been saved
+          if (lastSavedVersion === currentSaveVersion) {
+            if (asIcon && asText) {
+              asIcon.style.color = '#10b981';
+              asIcon.textContent = '✓';
+              asText.textContent = 'All changes saved';
             }
           }
-        } while (needsSaveAgain || lastSavedVersion < currentSaveVersion);
-
-        // Badge ONLY turns green if all pending edits have been saved
-        if (lastSavedVersion === currentSaveVersion) {
+        } catch (err) {
+          success = false;
+          console.error('[Wargative AutoSave] Failed to save scene:', err);
           if (asIcon && asText) {
-            asIcon.style.color = '#10b981';
-            asIcon.textContent = '✓';
-            asText.textContent = 'All changes saved';
+            asIcon.style.color = '#ef4444';
+            asIcon.textContent = '⚠';
+            asText.textContent = 'Save failed';
           }
+        } finally {
+          isSaving = false;
+          activeSavePromise = null;
         }
-      } catch (err) {
-        console.error('[Wargative AutoSave] Failed to save scene:', err);
-        if (asIcon && asText) {
-          asIcon.style.color = '#ef4444';
-          asIcon.textContent = '⚠';
-          asText.textContent = 'Save failed';
-        }
-      } finally {
-        isSaving = false;
+        return success;
+      })();
+
+      return activeSavePromise;
+    };
+
+    const flushPendingSaves = async (): Promise<boolean> => {
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
       }
+      while (currentSaveVersion > lastSavedVersion || isSaving || needsSaveAgain) {
+        const ok = await performAutoSave();
+        if (!ok) {
+          return false;
+        }
+      }
+      return currentSaveVersion === lastSavedVersion && !isSaving && !needsSaveAgain;
     };
 
     // Expose active project helpers to window so isolated workflows (e.g. importScene) can safely switch context
@@ -260,15 +283,11 @@ CreativeEditorSDK.create('#cesdk_container', config)
       needsSaveAgain,
       currentVersion: currentSaveVersion,
       lastSavedVersion,
-      hasPendingChanges: currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null
+      hasPendingChanges: currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain
     });
     (window as any).__wargativeSaveCurrentProject = async () => {
       if (!projectId) return;
-      if (saveDebounceTimer) {
-        clearTimeout(saveDebounceTimer);
-        saveDebounceTimer = null;
-      }
-      await performAutoSave();
+      await flushPendingSaves();
     };
     (window as any).__wargativeBindProject = (newId: string, newMeta: ProjectItem) => {
       if (saveDebounceTimer) {
@@ -647,14 +666,51 @@ CreativeEditorSDK.create('#cesdk_container', config)
     // Proactive flush on reload shortcuts before browser starts unloading
     window.addEventListener(
       'keydown',
-      (e) => {
+      async (e) => {
         if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
-          if (saveDebounceTimer || currentSaveVersion > lastSavedVersion) {
+          const hasUnsaved = currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain;
+          if (hasUnsaved) {
+            // 1. SYNCHRONOUSLY prevent native browser reload BEFORE any await!
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 2. Cancel debounce timer immediately
             if (saveDebounceTimer) {
               clearTimeout(saveDebounceTimer);
               saveDebounceTimer = null;
             }
-            performAutoSave();
+
+            // 3. Status feedback
+            if (asIcon && asText) {
+              asIcon.style.color = '#3b82f6';
+              asIcon.textContent = '⟳';
+              asText.textContent = 'Saving before reload...';
+            }
+
+            // 4. Await entire save chain to complete with a 3.5s timeout guard
+            try {
+              const saveSucceeded = await Promise.race([
+                flushPendingSaves(),
+                new Promise<boolean>((_, reject) =>
+                  setTimeout(() => reject(new Error('Save timed out before reload')), 3500)
+                )
+              ]);
+
+              // 5. CRITICAL: NEVER reload unless all saves truly completed and no save is in-flight
+              if (saveSucceeded && currentSaveVersion === lastSavedVersion && !isSaving && !needsSaveAgain) {
+                window.location.reload();
+              } else {
+                throw new Error('Save incomplete before reload');
+              }
+            } catch (err) {
+              // Safety fallback: if save timed out or failed, cancel reload and keep user in the editor!
+              console.warn('[Wargative] Reload cancelled to prevent data loss:', err);
+              if (asIcon && asText) {
+                asIcon.style.color = '#ef4444';
+                asIcon.textContent = '⚠';
+                asText.textContent = 'Save incomplete — reload cancelled';
+              }
+            }
           }
         }
       },
@@ -710,7 +766,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
     // Auto-save before unload, pagehide, and visibilitychange (best-effort flush & last-resort UX warning)
     window.addEventListener('beforeunload', (e) => {
-      const hasUnsaved = currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving;
+      const hasUnsaved = currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain;
       if (hasUnsaved) {
         if (saveDebounceTimer) {
           clearTimeout(saveDebounceTimer);
