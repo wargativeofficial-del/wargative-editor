@@ -18,6 +18,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticateRequest } from '../_lib/authMiddleware.js';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { reconcileStalePost, applyReconciliationResult } from '../_lib/reconciliation.js';
 
 /**
  * Strict ISO 8601 regex:
@@ -378,7 +379,7 @@ async function handlePatch(
   userId: string,
   supabase: ReturnType<typeof getSupabaseAdmin>
 ) {
-  const { id, status, publishedPostId, publishedPostUrl, caption, scheduledAt } = req.body || {};
+  const { id, status, publishedPostId, publishedPostUrl, caption, scheduledAt, action } = req.body || {};
 
   if (!id || typeof id !== 'string' || id.trim().length === 0) {
     return res.status(400).json({
@@ -388,6 +389,51 @@ async function handlePatch(
   }
 
   const cleanId = id.trim();
+
+  // Branch R: Reconcile Stale Publishing Post (Phase 4B Recovery)
+  if (action === 'reconcile') {
+    const { data: targetPost, error: targetError } = await supabase
+      .from('scheduled_posts')
+      .select('id, user_id, connection_id, platform, caption, media_url, scheduled_at, status, updated_at')
+      .eq('id', cleanId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (targetError || !targetPost) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Postingan tidak ditemukan atau bukan milik akun Anda.'
+      });
+    }
+
+    if (targetPost.status !== 'publishing') {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: `Rekonsiliasi hanya dapat dilakukan untuk postingan berstatus publishing (status saat ini: ${targetPost.status}).`
+      });
+    }
+
+    const claimTime = new Date(targetPost.updated_at).getTime();
+    const elapsed = Date.now() - claimTime;
+    if (isNaN(claimTime) || elapsed < 5 * 60 * 1000) {
+      return res.status(400).json({
+        error: 'Too Early',
+        message: 'Postingan baru saja mulai diproses (kurang dari 5 menit). Harap tunggu hingga 5 menit sebelum melakukan pemeriksaan.'
+      });
+    }
+
+    const outcome = await reconcileStalePost(supabase, targetPost);
+    const applied = await applyReconciliationResult(supabase, targetPost, outcome);
+
+    return res.status(200).json({
+      success: true,
+      action: 'reconcile',
+      outcome: outcome.outcome,
+      detail: outcome.outcome === 'strong_match' ? outcome.detail : outcome.reason,
+      post: applied.updatedPost || { id: cleanId, status: applied.status, error_message: applied.errorMessage }
+    });
+  }
+
   const isContentUpdate = caption !== undefined || scheduledAt !== undefined;
 
   // Validation for content update (reschedule / edit caption)

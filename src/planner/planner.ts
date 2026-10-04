@@ -1261,7 +1261,8 @@ class WargativeContentPlanner {
                 errorMessage: p.error_message || null,
                 publishedPostId: p.published_post_id || null,
                 publishedPostUrl: p.published_post_url || null,
-                createdAt: new Date(p.created_at).getTime()
+                createdAt: new Date(p.created_at).getTime(),
+                updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : undefined
               };
             });
           } else {
@@ -2462,6 +2463,10 @@ class WargativeContentPlanner {
     const canRetry = post.status === 'failed';
     const canEdit = post.status === 'scheduled';
     const canDelete = post.status === 'scheduled' || post.status === 'failed';
+    const isStalePublishing = post.status === 'publishing' && Boolean(post.isServer) && (
+      Boolean(post.updatedAt && (Date.now() - post.updatedAt > 5 * 60 * 1000)) ||
+      Boolean(!post.updatedAt && post.createdAt && (Date.now() - post.createdAt > 5 * 60 * 1000))
+    );
     const livePostUrl = this.getSafeLivePostUrl(post);
 
     const { hours, minutes } = this.parseTimeInput(post.timeStr);
@@ -2486,6 +2491,17 @@ class WargativeContentPlanner {
 
           ${post.caption ? `<div class="post-detail-caption">${this.escapeHtml(post.caption)}</div>` : ''}
 
+          ${isStalePublishing ? `
+            <div class="post-detail-stale-warning" style="margin: 14px 0 6px 0; padding: 12px 14px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; color: #b45309; font-size: 13px; line-height: 1.5;">
+              <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <span>⚠️</span><span>Penerbitan mungkin terputus</span>
+              </div>
+              <div style="color: #92400e; word-break: break-word;">
+                ${post.errorMessage ? this.escapeHtml(post.errorMessage) : 'Proses penerbitan telah berlangsung lebih dari 5 menit dan mungkin terhenti. Periksa status ke platform untuk memulihkan tanpa risiko postingan duplikat.'}
+              </div>
+            </div>
+          ` : ''}
+
           ${post.status === 'failed' ? `
             <div class="post-detail-error" style="margin: 14px 0 6px 0; padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; color: #ef4444; font-size: 13px; line-height: 1.5;">
               <div style="font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -2502,6 +2518,11 @@ class WargativeContentPlanner {
               <a href="${this.escapeHtml(livePostUrl)}" target="_blank" rel="noopener noreferrer" class="btn-live-post-detail" style="text-decoration: none; padding: 9px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box;">
                 <span>🔗</span><span>Buka Postingan</span>
               </a>
+            ` : ''}
+            ${isStalePublishing ? `
+              <button class="btn-reconcile-post-detail" id="btnReconcilePostDetail" style="padding: 9px 16px; background: #d97706; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                <span>🔍</span><span>Periksa & Pulihkan</span>
+              </button>
             ` : ''}
             ${canPublishNow ? `
               <button class="btn-publish-now-detail" id="btnPublishNowDetail" style="padding: 9px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
@@ -2837,6 +2858,79 @@ class WargativeContentPlanner {
         this.showToast(`❌ ${err?.message || 'Gagal memproses publikasi ulang.'}`, 6000);
         btnRetryDetail.disabled = false;
         btnRetryDetail.innerHTML = originalText;
+      }
+    });
+
+    const btnReconcileDetail = this.postDetailDialogOverlay.querySelector('#btnReconcilePostDetail') as HTMLButtonElement | null;
+    btnReconcileDetail?.addEventListener('click', async () => {
+      btnReconcileDetail.disabled = true;
+      const originalText = btnReconcileDetail.innerHTML;
+      btnReconcileDetail.innerHTML = `<span>⏳</span><span>Memeriksa ke platform...</span>`;
+
+      try {
+        const authHeaders = await getAuthHeader();
+        const res = await fetch('/api/planner/posts', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders
+          },
+          body: JSON.stringify({
+            id: post.id,
+            action: 'reconcile'
+          })
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || `Gagal memeriksa status (HTTP ${res.status}).`);
+        }
+
+        if (data.outcome === 'strong_match') {
+          this.showToast('✅ Postingan terverifikasi sudah terbit di platform! Status diperbarui menjadi Tayang.', 5000);
+          post.status = 'published';
+          post.publishedPostId = data.post?.published_post_id || post.publishedPostId;
+          post.publishedPostUrl = data.post?.published_post_url || post.publishedPostUrl;
+          post.errorMessage = null;
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) {
+            itemInList.status = 'published';
+            itemInList.publishedPostId = post.publishedPostId;
+            itemInList.publishedPostUrl = post.publishedPostUrl;
+            itemInList.errorMessage = null;
+          }
+          this.renderCalendar();
+          this.openPostDetailModal(post);
+        } else if (data.outcome === 'strong_not_found') {
+          this.showToast('ℹ️ Postingan terverifikasi belum terbit di platform. Status diubah ke Gagal agar dapat Anda publikasikan ulang.', 6000);
+          post.status = 'failed';
+          post.errorMessage = data.post?.error_message || data.detail;
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) {
+            itemInList.status = 'failed';
+            itemInList.errorMessage = post.errorMessage;
+          }
+          this.renderCalendar();
+          this.openPostDetailModal(post);
+        } else {
+          // Ambiguous: remains publishing
+          this.showToast(`⚠️ Status belum dapat dipastikan (${data.detail || 'Metadata tidak cukup'}). Status tetap publishing untuk mencegah duplikasi.`, 7000);
+          post.errorMessage = data.post?.error_message || data.detail;
+          if (data.post?.updated_at) {
+            post.updatedAt = new Date(data.post.updated_at).getTime();
+          }
+          const itemInList = this.serverScheduledPosts.find((p) => p.id === post.id);
+          if (itemInList) {
+            itemInList.errorMessage = post.errorMessage;
+            if (post.updatedAt) itemInList.updatedAt = post.updatedAt;
+          }
+          this.openPostDetailModal(post);
+        }
+      } catch (err: any) {
+        console.error('[Planner] Gagal rekonsiliasi postingan:', err);
+        this.showToast(`❌ ${err?.message || 'Gagal memeriksa status ke platform.'}`, 6000);
+        btnReconcileDetail.disabled = false;
+        btnReconcileDetail.innerHTML = originalText;
       }
     });
 

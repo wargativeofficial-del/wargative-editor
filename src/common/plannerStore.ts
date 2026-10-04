@@ -49,6 +49,7 @@ export interface ScheduledPost {
   publishedPostId?: string | null;
   publishedPostUrl?: string | null;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface CalendarHoliday {

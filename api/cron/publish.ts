@@ -23,6 +23,7 @@ import crypto from 'crypto';
 import { getSupabaseAdmin } from '../_lib/supabaseAdmin.js';
 import { publishInstagramPost } from '../_lib/instagramPublisher.js';
 import { publishFacebookPost } from '../_lib/facebookPublisher.js';
+import { reconcileStalePost, applyReconciliationResult } from '../_lib/reconciliation.js';
 
 const BATCH_LIMIT = 10;
 
@@ -71,7 +72,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
 
-  // 3. Query due posts: status = 'scheduled' AND scheduled_at <= NOW()
+  // 3. Stale Publishing Posts Reconciliation (Phase 4B Recovery)
+  // Heuristic: status = 'publishing' AND updated_at <= NOW() - 5 minutes
+  // Only reconciles against Meta platforms, NEVER republishes.
+  const fiveMinutesAgoIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  let reconciled = 0;
+
+  try {
+    const { data: stalePosts, error: staleError } = await supabase
+      .from('scheduled_posts')
+      .select('id, user_id, connection_id, platform, caption, media_url, scheduled_at, status, updated_at')
+      .eq('status', 'publishing')
+      .lte('updated_at', fiveMinutesAgoIso)
+      .order('updated_at', { ascending: true })
+      .limit(5);
+
+    if (staleError) {
+      console.error('[Cron Publisher] Gagal mengambil stale publishing posts:', staleError);
+    } else if (stalePosts && stalePosts.length > 0) {
+      for (const stale of stalePosts) {
+        // Atomic claim to prevent concurrent reconciliation by another worker
+        const { data: claimedStale, error: claimStaleErr } = await supabase
+          .from('scheduled_posts')
+          .update({
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', stale.id)
+          .eq('status', 'publishing')
+          .eq('updated_at', stale.updated_at)
+          .select('id');
+
+        if (claimStaleErr || !claimedStale || claimedStale.length === 0) {
+          continue;
+        }
+
+        try {
+          const outcome = await reconcileStalePost(supabase, stale);
+          await applyReconciliationResult(supabase, stale, outcome);
+          reconciled++;
+          console.log(`[Cron Publisher] Stale post ${stale.id} direkonsiliasi: ${outcome.outcome}`);
+        } catch (recErr: any) {
+          console.error(`[Cron Publisher] Gagal rekonsiliasi stale post ${stale.id}:`, recErr);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('[Cron Publisher] Exception pada rekonsiliasi stale posts:', err);
+  }
+
+  // 4. Query due posts: status = 'scheduled' AND scheduled_at <= NOW()
   const { data: duePosts, error: fetchError } = await supabase
     .from('scheduled_posts')
     .select('id, user_id, connection_id, platform, caption, media_url, scheduled_at, status')
@@ -95,7 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       processed: 0,
       published: 0,
       failed: 0,
-      skipped: 0
+      skipped: 0,
+      reconciled
     });
   }
 
@@ -234,7 +284,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     processed,
     published,
     failed,
-    skipped
+    skipped,
+    reconciled
   });
 }
 
