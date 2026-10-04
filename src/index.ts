@@ -135,6 +135,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
     const asText = autoSaveBadge.querySelector('#as-text') as HTMLElement;
 
     let isSaving = false;
+    let needsSaveAgain = false;
+    let currentSaveVersion = 0;
+    let lastSavedVersion = 0;
     let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Informative notification for legacy projects containing local blob: images
@@ -179,45 +182,63 @@ CreativeEditorSDK.create('#cesdk_container', config)
     };
 
     const performAutoSave = async () => {
-      if (isSaving) return;
+      // If already saving, queue a follow-up save so new edits are never dropped
+      if (isSaving) {
+        needsSaveAgain = true;
+        return;
+      }
       isSaving = true;
 
-      if (asIcon && asText) {
-        asIcon.style.color = '#3b82f6';
-        asIcon.textContent = '⟳';
-        asText.textContent = 'Saving...';
-      }
-
       try {
-        const sceneString = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId!, sceneString);
+        // Sequential re-entrant loop: continue processing while there are pending changes or newer versions
+        do {
+          needsSaveAgain = false;
+          // Capture the exact edit version at the start of this snapshot attempt
+          const targetVersion = currentSaveVersion;
 
-        // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
-        if (!sceneString.includes('blob:')) {
-          const alertEl = document.getElementById('wargative-legacy-blob-alert');
-          if (alertEl) alertEl.remove();
-        }
+          if (asIcon && asText) {
+            asIcon.style.color = '#3b82f6';
+            asIcon.textContent = '⟳';
+            asText.textContent = 'Saving...';
+          }
 
-        // Update project store timestamp (strict check: prevent stale fallback to previous project)
-        const currentMeta = getProject(projectId!) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
-        if (currentMeta) {
-          currentMeta.updatedAt = Date.now();
-          saveProjectMeta(currentMeta);
-        }
+          // Await fresh scene string snapshot from CE.SDK engine
+          const sceneString = await cesdk.engine.scene.saveToString();
 
-        setTimeout(() => {
+          // Monotonic guard: only persist if this snapshot is newer than or equal to what was previously saved
+          if (targetVersion >= lastSavedVersion) {
+            saveProjectScene(projectId!, sceneString);
+            lastSavedVersion = targetVersion;
+
+            // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
+            if (!sceneString.includes('blob:')) {
+              const alertEl = document.getElementById('wargative-legacy-blob-alert');
+              if (alertEl) alertEl.remove();
+            }
+
+            // Update project store timestamp (strict check: prevent stale fallback to previous project)
+            const currentMeta = getProject(projectId!) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
+            if (currentMeta) {
+              currentMeta.updatedAt = Date.now();
+              saveProjectMeta(currentMeta);
+            }
+          }
+        } while (needsSaveAgain || lastSavedVersion < currentSaveVersion);
+
+        // Badge ONLY turns green if all pending edits have been saved
+        if (lastSavedVersion === currentSaveVersion) {
           if (asIcon && asText) {
             asIcon.style.color = '#10b981';
             asIcon.textContent = '✓';
             asText.textContent = 'All changes saved';
           }
-        }, 300);
+        }
       } catch (err) {
         console.error('[Wargative AutoSave] Failed to save scene:', err);
         if (asIcon && asText) {
-          asIcon.style.color = '#94a3b8';
-          asIcon.textContent = '✓';
-          asText.textContent = 'Saved locally';
+          asIcon.style.color = '#ef4444';
+          asIcon.textContent = '⚠';
+          asText.textContent = 'Save failed';
         }
       } finally {
         isSaving = false;
@@ -232,24 +253,22 @@ CreativeEditorSDK.create('#cesdk_container', config)
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = null;
       }
+      needsSaveAgain = false;
     };
+    (window as any).__wargativeGetSaveStatus = () => ({
+      isSaving,
+      needsSaveAgain,
+      currentVersion: currentSaveVersion,
+      lastSavedVersion,
+      hasPendingChanges: currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null
+    });
     (window as any).__wargativeSaveCurrentProject = async () => {
       if (!projectId) return;
       if (saveDebounceTimer) {
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = null;
       }
-      try {
-        const sceneString = await cesdk.engine.scene.saveToString();
-        saveProjectScene(projectId, sceneString);
-        const currentMeta = getProject(projectId) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
-        if (currentMeta) {
-          currentMeta.updatedAt = Date.now();
-          saveProjectMeta(currentMeta);
-        }
-      } catch (e) {
-        console.warn('[Wargative] Failed to flush current project before switch:', e);
-      }
+      await performAutoSave();
     };
     (window as any).__wargativeBindProject = (newId: string, newMeta: ProjectItem) => {
       if (saveDebounceTimer) {
@@ -607,6 +626,8 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
     // Auto-save on every user edit in CE.SDK canvas & sync to AI Studio!
     cesdk.engine.editor.onHistoryUpdated(() => {
+      currentSaveVersion++;
+
       if (asIcon && asText) {
         asIcon.style.color = '#f59e0b';
         asIcon.textContent = '●';
@@ -614,11 +635,31 @@ CreativeEditorSDK.create('#cesdk_container', config)
       }
 
       if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-      saveDebounceTimer = setTimeout(performAutoSave, 1000);
+      saveDebounceTimer = setTimeout(() => {
+        saveDebounceTimer = null;
+        performAutoSave();
+      }, 400);
 
       // Live sync every change to AI Studio
       syncSceneToAiStudio();
     });
+
+    // Proactive flush on reload shortcuts before browser starts unloading
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
+          if (saveDebounceTimer || currentSaveVersion > lastSavedVersion) {
+            if (saveDebounceTimer) {
+              clearTimeout(saveDebounceTimer);
+              saveDebounceTimer = null;
+            }
+            performAutoSave();
+          }
+        }
+      },
+      true
+    );
 
     // Subscribe to block events for immediate feedback
     try {
@@ -667,21 +708,27 @@ CreativeEditorSDK.create('#cesdk_container', config)
       }
     });
 
-    // Auto-save before unload, pagehide, and visibilitychange
-    window.addEventListener('beforeunload', () => {
-      try {
-        cesdk.engine.scene.saveToString().then((sceneString) => {
-          saveProjectScene(projectId!, sceneString);
-        });
-      } catch (e) {}
+    // Auto-save before unload, pagehide, and visibilitychange (best-effort flush & last-resort UX warning)
+    window.addEventListener('beforeunload', (e) => {
+      const hasUnsaved = currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving;
+      if (hasUnsaved) {
+        if (saveDebounceTimer) {
+          clearTimeout(saveDebounceTimer);
+          saveDebounceTimer = null;
+        }
+        performAutoSave();
+
+        // Last-resort UX warning: pauses browser teardown giving async save time to complete
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
     });
 
     window.addEventListener('pagehide', () => {
-      try {
-        cesdk.engine.scene.saveToString().then((sceneString) => {
-          saveProjectScene(projectId!, sceneString);
-        });
-      } catch (e) {}
+      if (currentSaveVersion > lastSavedVersion) {
+        performAutoSave();
+      }
     });
 
     document.addEventListener('visibilitychange', () => {
