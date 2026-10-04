@@ -194,8 +194,8 @@ CreativeEditorSDK.create('#cesdk_container', config)
           if (alertEl) alertEl.remove();
         }
 
-        // Update project store timestamp
-        const currentMeta = getProject(projectId!) || projectMeta;
+        // Update project store timestamp (strict check: prevent stale fallback to previous project)
+        const currentMeta = getProject(projectId!) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
         if (currentMeta) {
           currentMeta.updatedAt = Date.now();
           saveProjectMeta(currentMeta);
@@ -217,6 +217,68 @@ CreativeEditorSDK.create('#cesdk_container', config)
         }
       } finally {
         isSaving = false;
+      }
+    };
+
+    // Expose active project helpers to window so isolated workflows (e.g. importScene) can safely switch context
+    (window as any).__wargativeGetActiveProjectId = () => projectId;
+    (window as any).__wargativeGetActiveProjectMeta = () => projectMeta;
+    (window as any).__wargativeCancelPendingSave = () => {
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
+      }
+    };
+    (window as any).__wargativeSaveCurrentProject = async () => {
+      if (!projectId) return;
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
+      }
+      try {
+        const sceneString = await cesdk.engine.scene.saveToString();
+        saveProjectScene(projectId, sceneString);
+        const currentMeta = getProject(projectId) || (projectMeta && projectMeta.id === projectId ? projectMeta : undefined);
+        if (currentMeta) {
+          currentMeta.updatedAt = Date.now();
+          saveProjectMeta(currentMeta);
+        }
+      } catch (e) {
+        console.warn('[Wargative] Failed to flush current project before switch:', e);
+      }
+    };
+    (window as any).__wargativeBindProject = (newId: string, newMeta: ProjectItem) => {
+      if (saveDebounceTimer) {
+        clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = null;
+      }
+      projectId = newId;
+      projectMeta = newMeta;
+
+      // Update URL query parameters
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', newId);
+      url.searchParams.delete('projectId');
+      if (newMeta.title) {
+        url.searchParams.set('name', newMeta.title);
+      }
+      window.history.replaceState(null, '', url.toString());
+
+      // Update document title
+      document.title = `${newMeta.title} - Wargative Editor`;
+
+      // Update AutoSave badge
+      if (asIcon && asText) {
+        asIcon.style.color = '#10b981';
+        asIcon.textContent = '✓';
+        asText.textContent = 'All changes saved';
+      }
+
+      // Hide AI Studio button if navigating to general imported design
+      const navAiBtn = document.getElementById('navAiStudioBtn') as HTMLAnchorElement | null;
+      if (navAiBtn) {
+        navAiBtn.style.display = 'none';
+        autoSaveBadge.style.left = '104px';
       }
     };
 

@@ -40,6 +40,13 @@
 import type CreativeEditorSDK from '@cesdk/cesdk-js';
 import type { AssetDefinition } from '@cesdk/engine';
 import { getAuthHeader } from '../../common/authClient';
+import {
+  saveProjectMeta,
+  saveProjectScene,
+  getProject,
+  deleteProject,
+  ProjectItem
+} from '../../common/projectStore';
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -146,10 +153,8 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
 
   // #region Import Scene Action
   // Import a scene or archive .imgly file (legacy .scene and .zip keep working);
-  // without a format the file's content decides how it is loaded
+  // Isolated new-project import workflow: Never overwrites active Project A!
   cesdk.actions.register('importScene', async ({ format } = {}) => {
-    // The engine detects scenes vs archives from the file content, so the file
-    // is always handed over as an object URL. `format` only narrows the picker.
     let accept = '.imgly,.scene,.zip';
     if (format === 'scene') {
       accept = '.imgly,.scene';
@@ -157,17 +162,177 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
       accept = '.imgly,.zip';
     }
 
-    const blobURL = await cesdk.utils.loadFile({
-      accept,
-      returnType: 'objectURL'
-    });
+    let fileOrBlob: any;
     try {
-      await cesdk.engine.scene.load(blobURL);
-    } finally {
-      URL.revokeObjectURL(blobURL);
+      fileOrBlob = await cesdk.utils.loadFile({
+        accept,
+        returnType: 'File'
+      });
+    } catch (pickerErr) {
+      // User cancelled file picker or picker was aborted
+      return;
     }
 
-    // Reset zoom to show the first page after import
+    if (!fileOrBlob) {
+      return;
+    }
+
+    let blobURL: string;
+    let shouldRevoke = true;
+    let fileName = 'Imported Design';
+
+    if (typeof fileOrBlob === 'string') {
+      blobURL = fileOrBlob;
+    } else if (fileOrBlob instanceof Blob) {
+      blobURL = URL.createObjectURL(fileOrBlob);
+      if ((fileOrBlob as File).name) {
+        fileName = (fileOrBlob as File).name.replace(/\.[^/.]+$/, '').trim() || 'Imported Design';
+      }
+    } else {
+      return;
+    }
+
+    // 1. STEP A: Cancel pending autosave timer & flush Project A completely!
+    if (typeof (window as any).__wargativeCancelPendingSave === 'function') {
+      (window as any).__wargativeCancelPendingSave();
+    }
+
+    const currentProjectId: string | undefined =
+      (window as any).__wargativeGetActiveProjectId?.() ||
+      new URLSearchParams(window.location.search).get('id') ||
+      new URLSearchParams(window.location.search).get('projectId') ||
+      undefined;
+
+    let projectASceneString: string | null = null;
+    let projectAMeta: ProjectItem | undefined = undefined;
+
+    if (currentProjectId) {
+      try {
+        projectASceneString = await cesdk.engine.scene.saveToString();
+        saveProjectScene(currentProjectId, projectASceneString);
+        projectAMeta = getProject(currentProjectId) || (window as any).__wargativeGetActiveProjectMeta?.();
+        if (projectAMeta) {
+          projectAMeta.updatedAt = Date.now();
+          saveProjectMeta(projectAMeta);
+        }
+      } catch (err) {
+        console.warn('[Wargative Import] Failed to save Project A before import:', err);
+      }
+    }
+
+    // 2. STEP B: Generate new unique project ID and provisional metadata
+    const newProjectId = 'proj_' + Date.now();
+    const provisionalMeta: ProjectItem = {
+      id: newProjectId,
+      title: fileName || 'Imported Design',
+      format: '1080 x 1080 px',
+      width: 1080,
+      height: 1080,
+      updatedAt: Date.now(),
+      thumbnailColor: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+      thumbnailIcon: '📥',
+      badgeText: 'Imported',
+      badgeBg: '#2563eb',
+      badgeIconType: 'doc',
+      previewType: 'imported'
+    };
+
+    // 3. STEP C: Register new project metadata into project list BEFORE scene.load()
+    // This guarantees getProject(newProjectId) is never undefined during scene.load()
+    saveProjectMeta(provisionalMeta);
+
+    // 4. STEP D: Bind editor active context to newProjectId and provisionalMeta BEFORE scene.load()
+    // Any onHistoryUpdated or autosave that triggers during load will write exclusively to newProjectId
+    if (typeof (window as any).__wargativeBindProject === 'function') {
+      (window as any).__wargativeBindProject(newProjectId, provisionalMeta);
+    }
+
+    // 5. STEP E: Load imported scene with error handling and rollback on failure
+    try {
+      await cesdk.engine.scene.load(blobURL);
+    } catch (loadErr) {
+      console.error('[Wargative Import] Failed to load scene:', loadErr);
+      // Remove provisional project from storage
+      deleteProject(newProjectId);
+
+      // Rollback canvas to Project A snapshot
+      if (currentProjectId && projectASceneString) {
+        try {
+          await cesdk.engine.scene.loadFromString(projectASceneString);
+        } catch (rbErr) {
+          console.error('[Wargative Import] Rollback to Project A failed:', rbErr);
+        }
+        // Restore active context and URL back to Project A
+        if (typeof (window as any).__wargativeBindProject === 'function' && projectAMeta) {
+          (window as any).__wargativeBindProject(currentProjectId, projectAMeta);
+        }
+      }
+      alert('Gagal mengimpor file: Format tidak didukung atau file rusak.');
+      return;
+    } finally {
+      if (shouldRevoke && blobURL) {
+        try {
+          URL.revokeObjectURL(blobURL);
+        } catch (e) {}
+      }
+    }
+
+    // 6. STEP F: Extract actual dimensions and page info from the newly loaded scene
+    let width = 1080;
+    let height = 1080;
+    let finalTitle = fileName;
+
+    try {
+      const pages = cesdk.engine.scene.getPages();
+      if (pages.length > 0) {
+        const firstPage = pages[0];
+        const pageW = Math.round(cesdk.engine.block.getWidth(firstPage));
+        const pageH = Math.round(cesdk.engine.block.getHeight(firstPage));
+        if (pageW > 0) width = pageW;
+        if (pageH > 0) height = pageH;
+
+        const pageName = cesdk.engine.block.getName(firstPage);
+        if (pageName && pageName !== 'Page 1' && (!fileName || fileName === 'Imported Design')) {
+          finalTitle = pageName;
+        }
+      }
+    } catch (e) {}
+
+    const formatLabel = `${width} x ${height} px`;
+
+    // 7. STEP G: Save the scene to the new project in persistent storage
+    try {
+      const newSceneString = await cesdk.engine.scene.saveToString();
+      saveProjectScene(newProjectId, newSceneString);
+    } catch (saveErr) {
+      console.error('[Wargative Import] Failed to save imported scene:', saveErr);
+      alert('Gagal menyimpan scene baru ke penyimpanan lokal.');
+      return;
+    }
+
+    // 8. STEP H: Update new project metadata with definitive dimensions and title
+    const finalMeta: ProjectItem = {
+      ...provisionalMeta,
+      title: finalTitle,
+      format: formatLabel,
+      width,
+      height,
+      updatedAt: Date.now()
+    };
+    saveProjectMeta(finalMeta);
+
+    // 9. STEP I: Re-bind active editor context to final metadata & reset zoom
+    if (typeof (window as any).__wargativeBindProject === 'function') {
+      (window as any).__wargativeBindProject(newProjectId, finalMeta);
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', newProjectId);
+      url.searchParams.delete('projectId');
+      url.searchParams.set('name', finalTitle);
+      window.history.replaceState(null, '', url.toString());
+      document.title = `${finalTitle} - Wargative Editor`;
+    }
+
     await cesdk.actions.run('zoom.toPage', { page: 'first' });
   });
   // #endregion
