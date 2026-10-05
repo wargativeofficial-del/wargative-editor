@@ -16,6 +16,8 @@ export interface ProjectItem {
   badgeIconType?: string; // 'camera' | 'play' | 'compass' | 'doc' | 'star'
   previewType?: string; // visual style type matching Screenshot 1
   isTemplate?: boolean;
+  templateUri?: string;
+  templateUris?: string[];
 }
 
 const STORAGE_LIST_KEY = 'wargative_projects_list';

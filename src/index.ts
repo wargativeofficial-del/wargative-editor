@@ -8,6 +8,7 @@
 import CreativeEditorSDK from '@cesdk/cesdk-js';
 
 import { initDesignEditor } from './imgly';
+import { setupTemplatesHandler } from './imgly/templatesHandler';
 import { DEMO_ASSETS_BASE_URL } from './imgly/demo-assets';
 import {
   getProject,
@@ -32,6 +33,7 @@ const config = {
 
 CreativeEditorSDK.create('#cesdk_container', config)
   .then(async (cesdk) => {
+    (window as any).cesdk = cesdk;
     await initDesignEditor(cesdk);
 
     // ============================================================================
@@ -135,11 +137,56 @@ CreativeEditorSDK.create('#cesdk_container', config)
     const asText = autoSaveBadge.querySelector('#as-text') as HTMLElement;
 
     let isSaving = false;
+    let isApplyingTemplate = false;
+    let isRestoreFailed = false;
     let needsSaveAgain = false;
     let currentSaveVersion = 0;
     let lastSavedVersion = 0;
     let activeSavePromise: Promise<boolean> | null = null;
     let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Clear notification for restore failures
+    const showRestoreFailureNotification = (detail?: string) => {
+      if (document.getElementById('wargative-restore-failed-alert')) return;
+      const alertEl = document.createElement('div');
+      alertEl.id = 'wargative-restore-failed-alert';
+      alertEl.style.cssText = `
+        position: fixed;
+        top: 56px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #18181b;
+        border: 1px solid #ef4444;
+        padding: 12px 20px;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        color: #f4f4f5;
+        max-width: 650px;
+        box-sizing: border-box;
+      `;
+      alertEl.innerHTML = `
+        <span style="font-size: 20px; line-height: 1; color: #ef4444;">⚠️</span>
+        <div style="flex: 1; line-height: 1.4;">
+          <strong>Gagal Memuat Aset Desain:</strong> Terjadi kendala saat memuat resource template dari server. Desain asli Anda tetap aman tersimpan di penyimpanan lokal dan tidak tertimpa.
+        </div>
+        <button id="btnRetryRestore" type="button" style="background: #ef4444; border: none; color: #ffffff; padding: 6px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; white-space: nowrap;">🔁 Muat Ulang</button>
+        <button id="btnCloseRestoreAlert" type="button" style="background: none; border: none; font-size: 20px; color: #71717a; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
+      `;
+      document.body.appendChild(alertEl);
+
+      alertEl.querySelector('#btnRetryRestore')?.addEventListener('click', () => {
+        window.location.reload();
+      });
+      alertEl.querySelector('#btnCloseRestoreAlert')?.addEventListener('click', () => {
+        alertEl.remove();
+      });
+    };
 
     // Informative notification for legacy projects containing local blob: images
     const showLegacyBlobNotification = () => {
@@ -183,6 +230,17 @@ CreativeEditorSDK.create('#cesdk_container', config)
     };
 
     const performAutoSave = async (): Promise<boolean> => {
+      // Guard: If scene restore failed at startup, never overwrite valid stored data with incomplete/empty canvas
+      if (isRestoreFailed) {
+        console.warn('[Wargative AutoSave] Save skipped: scene restore previously failed. Stored scene preserved.');
+        if (asIcon && asText) {
+          asIcon.style.color = '#ef4444';
+          asIcon.textContent = '⚠';
+          asText.textContent = 'Restore failed';
+        }
+        return false;
+      }
+
       // If already saving, queue a follow-up save and return the active promise so callers can await the entire chain
       if (isSaving) {
         needsSaveAgain = true;
@@ -205,8 +263,10 @@ CreativeEditorSDK.create('#cesdk_container', config)
               asText.textContent = 'Saving...';
             }
 
-            // Await fresh scene string snapshot from CE.SDK engine
-            const sceneString = await cesdk.engine.scene.saveToString();
+            // Await fresh scene string snapshot from CE.SDK engine (allowing buffer schemes from imported templates)
+            const sceneString = await cesdk.engine.scene.saveToString({
+              allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+            });
 
             // Monotonic guard: only persist if this snapshot is newer than or equal to what was previously saved
             if (targetVersion >= lastSavedVersion) {
@@ -280,10 +340,11 @@ CreativeEditorSDK.create('#cesdk_container', config)
     };
     (window as any).__wargativeGetSaveStatus = () => ({
       isSaving,
+      isApplyingTemplate,
       needsSaveAgain,
       currentVersion: currentSaveVersion,
       lastSavedVersion,
-      hasPendingChanges: currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain
+      hasPendingChanges: isApplyingTemplate || currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain
     });
     (window as any).__wargativeSaveCurrentProject = async () => {
       if (!projectId) return;
@@ -552,8 +613,31 @@ CreativeEditorSDK.create('#cesdk_container', config)
       // Restore previously saved project scene
       try {
         console.log(`[Wargative AutoSave] Loading saved scene for ${projectId}`);
+
+        // Multi-Template Buffer Re-hydration
+        const templateUris: string[] = [];
+        if (projectMeta?.templateUris && Array.isArray(projectMeta.templateUris)) {
+          templateUris.push(...projectMeta.templateUris);
+        } else if (projectMeta?.templateUri) {
+          templateUris.push(projectMeta.templateUri);
+        }
+
+        if (templateUris.length > 0) {
+          console.log(`[Wargative] Step 1: Re-hydrating ${templateUris.length} template archive(s) for buffer resources:`, templateUris);
+          for (const uri of templateUris) {
+            console.log('[Wargative] Step 1a: Calling loadFromArchiveURL for', uri);
+            await cesdk.engine.scene.loadFromArchiveURL(uri);
+            console.log('[Wargative] Step 1b: Finished loadFromArchiveURL for', uri);
+          }
+        }
+
+        console.log('[Wargative] Step 2: Calling loadFromString with length', savedScene.length);
         await cesdk.engine.scene.loadFromString(savedScene);
+        console.log('[Wargative] Step 3: Finished loadFromString, scene id is', cesdk.engine.scene.get());
+
+        console.log('[Wargative] Step 4: Running zoom.toPage first');
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
+        console.log('[Wargative] Step 5: Finished zoom.toPage');
 
         // Inform user if this legacy project still contains expired local blob: assets
         if (savedScene.includes('blob:')) {
@@ -564,14 +648,24 @@ CreativeEditorSDK.create('#cesdk_container', config)
         if (isAiGen && aiTransferData) {
           syncAiDataToSceneBlocks(aiTransferData);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('[Wargative AutoSave] Failed to restore saved scene:', err);
-        if (isAiGen && aiTransferData) {
-          await buildAiDesignScene(cesdk, aiTransferData, width, height);
-        } else {
-          await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
+        isRestoreFailed = true;
+
+        showRestoreFailureNotification(err?.message || String(err));
+
+        if (asIcon && asText) {
+          asIcon.style.color = '#ef4444';
+          asIcon.textContent = '⚠';
+          asText.textContent = 'Restore failed';
         }
-        await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+        try {
+          if (cesdk.engine.scene.get() == null) {
+            await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
+            await cesdk.actions.run('zoom.toPage', { page: 'first' });
+          }
+        } catch (e) {}
       }
     } else if (isAiGen && aiTransferData) {
       // BUILD NATIVE AI DESIGN SCENE (Canva Style Layered Elements)
@@ -579,7 +673,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
       try {
         await buildAiDesignScene(cesdk, aiTransferData, width, height);
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        const initialSceneStr = await cesdk.engine.scene.saveToString({
+          allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+        });
         saveProjectScene(projectId, initialSceneStr);
       } catch (e) {
         console.error('[Wargative] Error building AI scene:', e);
@@ -592,6 +688,13 @@ CreativeEditorSDK.create('#cesdk_container', config)
       try {
         await cesdk.engine.scene.loadFromArchiveURL(templateUri);
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
+
+        // Record templateUri in project metadata for future buffer rehydration
+        if (projectMeta) {
+          projectMeta.templateUri = templateUri;
+          projectMeta.templateUris = [templateUri];
+          saveProjectMeta(projectMeta);
+        }
       } catch (err) {
         console.warn('[Wargative] loadFromArchiveURL failed, trying cesdk.load:', err);
         try {
@@ -606,7 +709,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
       // Save initial scene
       try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        const initialSceneStr = await cesdk.engine.scene.saveToString({
+          allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+        });
         saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     } else if (template === 'marketing-ad' || projectId === 'proj_marketing_ad') {
@@ -616,7 +721,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
       // Save initial scene
       try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        const initialSceneStr = await cesdk.engine.scene.saveToString({
+          allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+        });
         saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     } else {
@@ -638,13 +745,55 @@ CreativeEditorSDK.create('#cesdk_container', config)
 
       // Save initial scene immediately so it's never lost
       try {
-        const initialSceneStr = await cesdk.engine.scene.saveToString();
+        const initialSceneStr = await cesdk.engine.scene.saveToString({
+          allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+        });
         saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     }
 
+    // ============================================================================
+    // In-Editor Templates Handler (Page-Level Application & AutoSave Guard)
+    // ============================================================================
+    setupTemplatesHandler(cesdk, {
+      onBeforeTemplateApply: () => {
+        isApplyingTemplate = true;
+        if (saveDebounceTimer) {
+          clearTimeout(saveDebounceTimer);
+          saveDebounceTimer = null;
+        }
+        if (asIcon && asText) {
+          asIcon.style.color = '#3b82f6';
+          asIcon.textContent = '⟳';
+          asText.textContent = 'Applying template...';
+        }
+      },
+      onTemplateApplied: async (appliedUri: string) => {
+        if (!projectMeta) {
+          projectMeta = getProject(projectId!);
+        }
+        if (projectMeta) {
+          const uris = projectMeta.templateUris || (projectMeta.templateUri ? [projectMeta.templateUri] : []);
+          if (!uris.includes(appliedUri)) {
+            uris.push(appliedUri);
+          }
+          projectMeta.templateUris = uris;
+          projectMeta.templateUri = appliedUri;
+          saveProjectMeta(projectMeta);
+        }
+      },
+      onAfterTemplateApply: async () => {
+        isApplyingTemplate = false;
+        currentSaveVersion++;
+        await flushPendingSaves();
+      }
+    });
+
     // Auto-save on every user edit in CE.SDK canvas & sync to AI Studio!
     cesdk.engine.editor.onHistoryUpdated(() => {
+      if (isApplyingTemplate) {
+        return;
+      }
       currentSaveVersion++;
 
       if (asIcon && asText) {
