@@ -290,9 +290,11 @@ CreativeEditorSDK.create('#cesdk_container', config)
               allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
             });
 
-            // Monotonic guard: only persist if this snapshot is newer than or equal to what was previously saved
-            if (targetVersion >= lastSavedVersion) {
-              saveProjectScene(projectId!, sceneString);
+            // Persist scene to IndexedDB abstraction layer
+            const saveOk = await saveProjectScene(projectId!, sceneString);
+
+            // Monotonic guard: only advance lastSavedVersion if IndexedDB write succeeded
+            if (saveOk && targetVersion >= lastSavedVersion) {
               lastSavedVersion = targetVersion;
 
               // Auto-dismiss the legacy blob warning if user has replaced all blob: assets with permanent URLs
@@ -307,6 +309,9 @@ CreativeEditorSDK.create('#cesdk_container', config)
                 currentMeta.updatedAt = Date.now();
                 saveProjectMeta(currentMeta);
               }
+            } else if (!saveOk) {
+              success = false;
+              throw new Error(`[Wargative AutoSave] IndexedDB write failed for project ${projectId}`);
             }
           } while (needsSaveAgain || lastSavedVersion < currentSaveVersion);
 
@@ -629,7 +634,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
     // ============================================================================
     // Load Saved Scene or Initialize New Scene
     // ============================================================================
-    const savedScene = getProjectScene(projectId);
+    const savedScene = await getProjectScene(projectId);
 
     if (savedScene) {
       // Restore previously saved project scene
@@ -736,7 +741,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
         const initialSceneStr = await cesdk.engine.scene.saveToString({
           allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
         });
-        saveProjectScene(projectId, initialSceneStr);
+        await saveProjectScene(projectId, initialSceneStr);
       } catch (e) {
         console.error('[Wargative] Error building AI scene:', e);
         await cesdk.createDesignScene({ width, height, unit: 'Pixel' });
@@ -772,7 +777,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
         const initialSceneStr = await cesdk.engine.scene.saveToString({
           allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
         });
-        saveProjectScene(projectId, initialSceneStr);
+        await saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     } else if (template === 'marketing-ad' || projectId === 'proj_marketing_ad') {
       // Load marketing ad template
@@ -784,7 +789,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
         const initialSceneStr = await cesdk.engine.scene.saveToString({
           allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
         });
-        saveProjectScene(projectId, initialSceneStr);
+        await saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     } else {
       // Create new clean scene with dimensions
@@ -808,7 +813,7 @@ CreativeEditorSDK.create('#cesdk_container', config)
         const initialSceneStr = await cesdk.engine.scene.saveToString({
           allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
         });
-        saveProjectScene(projectId, initialSceneStr);
+        await saveProjectScene(projectId, initialSceneStr);
       } catch (e) {}
     }
 
@@ -1002,6 +1007,26 @@ CreativeEditorSDK.create('#cesdk_container', config)
       }
     });
 
+    // Proactive keyboard reload handler: guarantee pending changes are flushed to IndexedDB before reload
+    window.addEventListener('keydown', async (e) => {
+      const isReload =
+        (e.key === 'r' && (e.ctrlKey || e.metaKey)) ||
+        e.key === 'F5';
+
+      if (isReload) {
+        const hasUnsaved = currentSaveVersion > lastSavedVersion || saveDebounceTimer !== null || isSaving || needsSaveAgain;
+        if (hasUnsaved) {
+          e.preventDefault();
+          if (asIcon && asText) {
+            asIcon.textContent = '⟳';
+            asText.textContent = 'Saving before reload...';
+          }
+          await flushPendingSaves();
+          window.location.reload();
+        }
+      }
+    });
+
     // Home button: save scene first, then navigate
     const homeBtn = document.querySelector('.wargative-home-btn');
     if (homeBtn) {
@@ -1012,8 +1037,10 @@ CreativeEditorSDK.create('#cesdk_container', config)
           asText.textContent = 'Saving...';
         }
         try {
-          const sceneString = await cesdk.engine.scene.saveToString();
-          saveProjectScene(projectId!, sceneString);
+          const sceneString = await cesdk.engine.scene.saveToString({
+            allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+          });
+          await saveProjectScene(projectId!, sceneString);
           const currentMeta = getProject(projectId!) || projectMeta;
           if (currentMeta) {
             currentMeta.updatedAt = Date.now();
@@ -1038,8 +1065,10 @@ CreativeEditorSDK.create('#cesdk_container', config)
           asText.textContent = 'Saving...';
         }
         try {
-          const sceneString = await cesdk.engine.scene.saveToString();
-          saveProjectScene(projectId!, sceneString);
+          const sceneString = await cesdk.engine.scene.saveToString({
+            allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+          });
+          await saveProjectScene(projectId!, sceneString);
           syncSceneToAiStudio();
         } catch (err) {}
         window.location.href = './wargative-ai.html';

@@ -1739,7 +1739,7 @@ class WargativeContentPlanner {
   ): Promise<Blob[]> {
     // 1. Strict export for user projects containing CE.SDK scenes
     if (project?.id) {
-      const sceneString = getProjectScene(project.id);
+      const sceneString = await getProjectScene(project.id);
       if (sceneString) {
         let engine: any = null;
         try {

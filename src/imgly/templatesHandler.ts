@@ -117,6 +117,127 @@ function resolveTemplateUri(cesdk: CreativeEditorSDK, rawUri: string): string {
 }
 
 /**
+ * Converts a Uint8Array to a Base64 string in chunks to prevent call stack overflow.
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const len = bytes.byteLength;
+  const chunkSize = 8192;
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Scans the primary template page and its entire subtree (children, fills, shapes, effects)
+ * for transient buffer:// resources and converts them to persistent data: URIs via relocateResource.
+ * Strictly targets only resources referenced by the template page being imported.
+ */
+async function persistTemplatePageBufferResources(
+  cesdk: CreativeEditorSDK,
+  primaryTplPage: number
+): Promise<void> {
+  const blocks: number[] = [primaryTplPage];
+  const queue: number[] = [primaryTplPage];
+
+  while (queue.length > 0) {
+    const b = queue.shift()!;
+    // Inspect fill
+    try {
+      if (cesdk.engine.block.supportsFill(b) && cesdk.engine.block.hasFill(b)) {
+        const fill = cesdk.engine.block.getFill(b);
+        if (fill && cesdk.engine.block.isValid(fill) && !blocks.includes(fill)) {
+          blocks.push(fill);
+        }
+      }
+    } catch (e) {}
+
+    // Inspect shape
+    try {
+      const shape = cesdk.engine.block.getShape(b);
+      if (shape && cesdk.engine.block.isValid(shape) && !blocks.includes(shape)) {
+        blocks.push(shape);
+      }
+    } catch (e) {}
+
+    // Inspect effects
+    try {
+      const effects = cesdk.engine.block.getEffects(b);
+      if (Array.isArray(effects)) {
+        for (const eff of effects) {
+          if (eff && cesdk.engine.block.isValid(eff) && !blocks.includes(eff)) {
+            blocks.push(eff);
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Inspect children
+    try {
+      const children = cesdk.engine.block.getChildren(b);
+      if (Array.isArray(children)) {
+        for (const child of children) {
+          if (!blocks.includes(child)) {
+            blocks.push(child);
+            queue.push(child);
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Find all buffer:// URIs referenced strictly by these template blocks
+  const referencedBufferUris = new Set<string>();
+  for (const b of blocks) {
+    try {
+      const props = cesdk.engine.block.findAllProperties(b);
+      for (const prop of props) {
+        if (cesdk.engine.block.isPropertyReadable(prop)) {
+          const propType = cesdk.engine.block.getPropertyType(prop);
+          if (propType === 'String') {
+            const val = cesdk.engine.block.getString(b, prop as any);
+            if (val && typeof val === 'string' && val.startsWith('buffer://')) {
+              referencedBufferUris.add(val);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (referencedBufferUris.size === 0) {
+    return;
+  }
+
+  console.log(
+    `[Wargative Templates] Found ${referencedBufferUris.size} template buffer resource(s) to persist:`,
+    Array.from(referencedBufferUris)
+  );
+
+  // Convert and relocate each template-referenced buffer URI to a persistent data: URI
+  for (const bufferUri of referencedBufferUris) {
+    const length = cesdk.engine.editor.getBufferLength(bufferUri);
+    if (length <= 0) {
+      throw new Error(`Invalid buffer length (${length}) for template resource: ${bufferUri}`);
+    }
+    const data = cesdk.engine.editor.getBufferData(bufferUri, 0, length);
+    if (!data || data.byteLength === 0) {
+      throw new Error(`Failed to read buffer data for template resource: ${bufferUri}`);
+    }
+    const mime = (await cesdk.engine.editor.getMimeType(bufferUri)) || 'image/png';
+    const base64 = uint8ArrayToBase64(data);
+    const persistentUrl = `data:${mime};base64,${base64}`;
+
+    cesdk.engine.editor.relocateResource(bufferUri, persistentUrl);
+    console.log(
+      `[Wargative Templates] Relocated ${bufferUri} (${length} bytes, ${mime}) -> persistent data URI`
+    );
+  }
+}
+
+/**
  * Renders a Canva-style confirmation modal for applying templates to pages with existing design.
  */
 function showTemplateApplyModal(templateTitle: string): Promise<TemplateApplyMode | null> {
@@ -355,8 +476,58 @@ export async function applyTemplateToTargetPage(
       throw new Error('Template page has no elements');
     }
 
-    // Serialize children of primary page
-    const serializedBlocks = await cesdk.engine.block.saveToString(tplChildren);
+    // Persist all buffer:// resources strictly referenced by the template page before serialization
+    await persistTemplatePageBufferResources(cesdk, primaryTplPage);
+
+    // Generic Page Fill Extraction (supports solid color, complex fill block, and fill enable state)
+    type TemplatePageFillData =
+      | { type: 'solid'; rgba: [number, number, number, number]; enabled: boolean }
+      | { type: 'block'; serialized: string; enabled: boolean }
+      | { type: 'none' };
+
+    let tplPageFillData: TemplatePageFillData = { type: 'none' };
+
+    if (cesdk.engine.block.supportsFill(primaryTplPage) && cesdk.engine.block.hasFill(primaryTplPage)) {
+      const isEnabled = cesdk.engine.block.isFillEnabled(primaryTplPage);
+      const fillBlock = cesdk.engine.block.getFill(primaryTplPage);
+      if (fillBlock && cesdk.engine.block.isValid(fillBlock)) {
+        const fillType = cesdk.engine.block.getType(fillBlock);
+        if (fillType === '//ly.img.ubq/fill/color' || fillType.endsWith('/color')) {
+          const rgba = cesdk.engine.block.getFillSolidColor(primaryTplPage);
+          if (Array.isArray(rgba) && rgba.length >= 4) {
+            tplPageFillData = {
+              type: 'solid',
+              rgba: [rgba[0], rgba[1], rgba[2], rgba[3]],
+              enabled: isEnabled
+            };
+          } else {
+            throw new Error(`Invalid RGBA returned from getFillSolidColor for template page: ${JSON.stringify(rgba)}`);
+          }
+        } else {
+          // Complex fill (gradient, image fill, etc.)
+          const serializedFill = await cesdk.engine.block.saveToString([fillBlock], [
+            'blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data'
+          ]);
+          if (!serializedFill) {
+            throw new Error(`Failed to serialize template page fill block ${fillBlock} (${fillType})`);
+          }
+          tplPageFillData = {
+            type: 'block',
+            serialized: serializedFill,
+            enabled: isEnabled
+          };
+        }
+      } else {
+        tplPageFillData = { type: 'none' };
+      }
+    } else {
+      tplPageFillData = { type: 'none' };
+    }
+
+    // Serialize children of primary page with explicit allowed resource schemes
+    const serializedBlocks = await cesdk.engine.block.saveToString(tplChildren, [
+      'blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data'
+    ]);
 
     // 5. Restore user's scene immediately
     await cesdk.engine.scene.loadFromString(userSceneSnapshot);
@@ -391,6 +562,28 @@ export async function applyTemplateToTargetPage(
         cesdk.engine.block.appendChild(pageParent, newPage);
       }
       targetPage = newPage;
+    }
+
+    // Generic Page Fill Replication (Strict: errors bubble up to atomic rollback)
+    if (tplPageFillData.type === 'solid') {
+      if (!cesdk.engine.block.supportsFill(targetPage)) {
+        throw new Error('Target page does not support fill for template solid background');
+      }
+      const [r, g, b, a] = tplPageFillData.rgba;
+      cesdk.engine.block.setFillSolidColor(targetPage, r, g, b, a ?? 1.0);
+      cesdk.engine.block.setFillEnabled(targetPage, tplPageFillData.enabled);
+    } else if (tplPageFillData.type === 'block') {
+      const importedFills = await cesdk.engine.block.loadFromString(tplPageFillData.serialized);
+      if (!importedFills || importedFills.length === 0 || !cesdk.engine.block.isValid(importedFills[0])) {
+        throw new Error('Failed to deserialize template page fill block on target page');
+      }
+      cesdk.engine.block.setFill(targetPage, importedFills[0]);
+      cesdk.engine.block.setFillEnabled(targetPage, tplPageFillData.enabled);
+    } else if (tplPageFillData.type === 'none') {
+      // In replace mode, if template has no fill or fill is disabled, disable target page fill to avoid leaking previous background
+      if (mode === 'replace' && cesdk.engine.block.supportsFill(targetPage)) {
+        cesdk.engine.block.setFillEnabled(targetPage, false);
+      }
     }
 
     // 7. Instantiate template blocks in user's scene

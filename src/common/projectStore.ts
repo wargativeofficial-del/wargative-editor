@@ -283,32 +283,248 @@ export function saveProjectMeta(item: ProjectItem): void {
   }
 }
 
-export function saveProjectScene(id: string, sceneString: string): boolean {
+// ==========================================
+// IndexedDB Scene Persistence Layer
+// ==========================================
+const DB_NAME = 'wargative_db';
+const DB_VERSION = 1;
+const SCENES_STORE = 'scenes';
+
+interface StoredSceneRecord {
+  id: string;
+  sceneString: string;
+  updatedAt: number;
+}
+
+let dbInstance: IDBDatabase | null = null;
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function resetDbConnection(): void {
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch (e) {}
+  }
+  dbInstance = null;
+  dbPromise = null;
+}
+
+function openIndexedDb(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return reject(new Error('IndexedDB is not supported in this environment'));
+    }
+
+    try {
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(SCENES_STORE)) {
+          db.createObjectStore(SCENES_STORE, { keyPath: 'id' });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        dbInstance = db;
+        db.onclose = () => {
+          resetDbConnection();
+        };
+        db.onversionchange = () => {
+          resetDbConnection();
+        };
+        resolve(db);
+      };
+
+      request.onerror = (event) => {
+        resetDbConnection();
+        reject((event.target as IDBOpenDBRequest).error || new Error('Failed to open IndexedDB'));
+      };
+    } catch (err) {
+      resetDbConnection();
+      reject(err);
+    }
+  });
+
+  return dbPromise;
+}
+
+/**
+ * Executes an IndexedDB operation with automatic connection recovery and a single retry.
+ */
+async function withDb<T>(operation: (db: IDBDatabase) => Promise<T>): Promise<T> {
   try {
-    localStorage.setItem(SCENE_PREFIX + id, sceneString);
-    return true;
+    const db = await openIndexedDb();
+    return await operation(db);
+  } catch (err) {
+    console.warn('[projectStore] IndexedDB operation encountered error, resetting connection and retrying once:', err);
+    resetDbConnection();
+    const retryDb = await openIndexedDb();
+    return await operation(retryDb);
+  }
+}
+
+/**
+ * Saves scene string to IndexedDB.
+ * Returns true if successfully committed to IndexedDB, or false if write fails.
+ * STRICT: NEVER falls back to localStorage write for scene payloads.
+ */
+export async function saveProjectScene(id: string, sceneString: string): Promise<boolean> {
+  try {
+    const record: StoredSceneRecord = {
+      id,
+      sceneString,
+      updatedAt: Date.now()
+    };
+
+    return await withDb((db) => {
+      return new Promise<boolean>((resolve) => {
+        try {
+          const tx = db.transaction(SCENES_STORE, 'readwrite');
+          const store = tx.objectStore(SCENES_STORE);
+          store.put(record);
+
+          tx.oncomplete = () => {
+            // Write to IndexedDB committed! Clean up legacy localStorage entry if present
+            try {
+              localStorage.removeItem(SCENE_PREFIX + id);
+            } catch (e) {}
+            resolve(true);
+          };
+
+          tx.onerror = (ev) => {
+            console.error('[projectStore] IndexedDB save transaction error:', tx.error || ev);
+            resolve(false);
+          };
+
+          tx.onabort = (ev) => {
+            console.error('[projectStore] IndexedDB save transaction aborted:', tx.error || ev);
+            resolve(false);
+          };
+        } catch (txErr) {
+          console.error('[projectStore] Error initializing save transaction:', txErr);
+          resolve(false);
+        }
+      });
+    });
   } catch (e) {
-    console.error('Failed to save scene data:', e);
+    console.error('[projectStore] Failed to save scene to IndexedDB:', e);
     return false;
   }
 }
 
-export function getProjectScene(id: string): string | null {
+/**
+ * Retrieves scene string for the specified project.
+ * Checks IndexedDB first; if not found, falls back to legacy localStorage READ.
+ * If found in localStorage, migrates to IndexedDB and removes from localStorage ONLY after transaction commits.
+ */
+export async function getProjectScene(id: string): Promise<string | null> {
+  let idbScene: string | null = null;
+
   try {
-    return localStorage.getItem(SCENE_PREFIX + id);
-  } catch (e) {
-    console.error('Failed to get scene data:', e);
-    return null;
+    idbScene = await withDb((db) => {
+      return new Promise<string | null>((resolve) => {
+        try {
+          const tx = db.transaction(SCENES_STORE, 'readonly');
+          const store = tx.objectStore(SCENES_STORE);
+          const req = store.get(id);
+
+          req.onsuccess = () => {
+            const result = req.result as StoredSceneRecord | undefined;
+            resolve(result ? result.sceneString : null);
+          };
+
+          req.onerror = () => {
+            resolve(null);
+          };
+
+          tx.onabort = () => {
+            resolve(null);
+          };
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    });
+  } catch (idbErr) {
+    console.warn('[projectStore] Failed to read scene from IndexedDB, checking legacy localStorage:', idbErr);
   }
+
+  if (idbScene) {
+    return idbScene;
+  }
+
+  // Fallback: Check legacy localStorage
+  let legacyScene: string | null = null;
+  try {
+    legacyScene = localStorage.getItem(SCENE_PREFIX + id);
+  } catch (lsErr) {
+    console.error('[projectStore] Failed to read legacy scene from localStorage:', lsErr);
+  }
+
+  if (legacyScene) {
+    // Migration: Attempt to store in IndexedDB.
+    // STRICT REQUIREMENT: Only remove from localStorage AFTER tx.oncomplete commits!
+    try {
+      const record: StoredSceneRecord = {
+        id,
+        sceneString: legacyScene,
+        updatedAt: Date.now()
+      };
+
+      const migrationCommitted = await withDb((db) => {
+        return new Promise<boolean>((resolve) => {
+          try {
+            const tx = db.transaction(SCENES_STORE, 'readwrite');
+            const store = tx.objectStore(SCENES_STORE);
+            store.put(record);
+
+            tx.oncomplete = () => {
+              try {
+                localStorage.removeItem(SCENE_PREFIX + id);
+                console.log(`[projectStore] Migrated project ${id} from localStorage to IndexedDB successfully`);
+              } catch (e) {}
+              resolve(true);
+            };
+
+            tx.onerror = () => {
+              console.warn(`[projectStore] Migration transaction failed for ${id}. Legacy localStorage preserved.`);
+              resolve(false);
+            };
+
+            tx.onabort = () => {
+              console.warn(`[projectStore] Migration transaction aborted for ${id}. Legacy localStorage preserved.`);
+              resolve(false);
+            };
+          } catch (err) {
+            resolve(false);
+          }
+        });
+      });
+
+      if (!migrationCommitted) {
+        console.warn(`[projectStore] Migration to IndexedDB failed for ${id}. Legacy localStorage preserved.`);
+      }
+    } catch (migErr) {
+      console.warn(`[projectStore] Migration threw exception for ${id}. Legacy localStorage preserved:`, migErr);
+    }
+
+    return legacyScene;
+  }
+
+  return null;
 }
 
-export function duplicateProject(id: string): ProjectItem | null {
+export async function duplicateProject(id: string): Promise<ProjectItem | null> {
   try {
     const project = getProject(id);
     if (!project) return null;
 
     // 1. Verify source scene exists and is readable
-    const sceneData = getProjectScene(id);
+    const sceneData = await getProjectScene(id);
     if (!sceneData) {
       console.warn(`[duplicateProject] Source project scene not found for ${id}`);
       return null;
@@ -316,12 +532,13 @@ export function duplicateProject(id: string): ProjectItem | null {
 
     const newId = 'proj_' + Date.now();
 
-    // 2. Copy scene to newId and verify storage integrity
-    const saved = saveProjectScene(newId, sceneData);
-    if (!saved || getProjectScene(newId) !== sceneData) {
+    // 2. Copy scene to newId and verify storage integrity in IndexedDB
+    const saved = await saveProjectScene(newId, sceneData);
+    const verified = await getProjectScene(newId);
+    if (!saved || verified !== sceneData) {
       console.error(`[duplicateProject] Failed to persist duplicate scene for ${newId}`);
       try {
-        localStorage.removeItem(SCENE_PREFIX + newId);
+        await deleteProject(newId);
       } catch (err) {}
       return null;
     }
@@ -357,11 +574,29 @@ export function renameProject(id: string, newTitle: string): boolean {
   }
 }
 
-export function deleteProject(id: string): boolean {
+export async function deleteProject(id: string): Promise<boolean> {
   try {
     const projects = getProjects().filter((p) => p.id !== id);
     localStorage.setItem(STORAGE_LIST_KEY, JSON.stringify(projects));
-    localStorage.removeItem(SCENE_PREFIX + id);
+    try {
+      localStorage.removeItem(SCENE_PREFIX + id);
+    } catch (e) {}
+
+    await withDb((db) => {
+      return new Promise<void>((resolve) => {
+        try {
+          const tx = db.transaction(SCENES_STORE, 'readwrite');
+          const store = tx.objectStore(SCENES_STORE);
+          store.delete(id);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+          tx.onabort = () => resolve();
+        } catch (e) {
+          resolve();
+        }
+      });
+    });
+
     return true;
   } catch (e) {
     console.error('Failed to delete project:', e);

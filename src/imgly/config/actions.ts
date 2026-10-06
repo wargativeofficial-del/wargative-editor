@@ -208,8 +208,10 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
 
     if (currentProjectId) {
       try {
-        projectASceneString = await cesdk.engine.scene.saveToString();
-        saveProjectScene(currentProjectId, projectASceneString);
+        projectASceneString = await cesdk.engine.scene.saveToString({
+          allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+        });
+        await saveProjectScene(currentProjectId, projectASceneString);
         projectAMeta = getProject(currentProjectId) || (window as any).__wargativeGetActiveProjectMeta?.();
         if (projectAMeta) {
           projectAMeta.updatedAt = Date.now();
@@ -253,7 +255,7 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
     } catch (loadErr) {
       console.error('[Wargative Import] Failed to load scene:', loadErr);
       // Remove provisional project from storage
-      deleteProject(newProjectId);
+      await deleteProject(newProjectId);
 
       // Rollback canvas to Project A snapshot
       if (currentProjectId && projectASceneString) {
@@ -302,8 +304,13 @@ export function setupActions(cesdk: CreativeEditorSDK): void {
 
     // 7. STEP G: Save the scene to the new project in persistent storage
     try {
-      const newSceneString = await cesdk.engine.scene.saveToString();
-      saveProjectScene(newProjectId, newSceneString);
+      const newSceneString = await cesdk.engine.scene.saveToString({
+        allowedResourceSchemes: ['blob', 'bundle', 'file', 'http', 'https', 'opfs', 'buffer', 'data']
+      });
+      const saveOk = await saveProjectScene(newProjectId, newSceneString);
+      if (!saveOk) {
+        throw new Error('IndexedDB save returned false');
+      }
     } catch (saveErr) {
       console.error('[Wargative Import] Failed to save imported scene:', saveErr);
       alert('Gagal menyimpan scene baru ke penyimpanan lokal.');

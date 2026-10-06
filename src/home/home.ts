@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Action Menu Handlers
-  canvaDropdownMenu?.addEventListener('click', (e) => {
+  canvaDropdownMenu?.addEventListener('click', async (e) => {
     const target = (e.target as HTMLElement).closest('.canva-menu-item') as HTMLElement;
     if (!target || !activeProjectId) return;
 
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       case 'duplicate': {
-        const copy = duplicateProject(project.id);
+        const copy = await duplicateProject(project.id);
         if (copy) {
           showToast(`Project duplicated: "${copy.title}" 📋`);
           renderDesignCards();
@@ -517,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       case 'trash': {
         if (confirm(`Move "${project.title}" to Trash?`)) {
-          deleteProject(project.id);
+          await deleteProject(project.id);
           showToast(`"${project.title}" moved to Trash 🗑️`);
           renderDesignCards();
         }
