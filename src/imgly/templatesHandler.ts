@@ -475,17 +475,24 @@ export function setupTemplatesHandler(
     return applyTemplateToTargetPage(cesdk, assetResult, mode, callbacks);
   };
 
-  // Defensive guard against CE.SDK v1.83 engine bug where UI inspector queries getFill without checking isValid(block)
+  // Diagnostic Defensive Safety Net: Prevent CE.SDK UI inspector from crashing on invalid blocks during scene transitions
   try {
-    const originalGetFill = cesdk.engine.block.getFill.bind(cesdk.engine.block);
-    cesdk.engine.block.getFill = (blockId: number) => {
-      try {
-        if (!cesdk.engine.block.isValid(blockId)) return 0;
-        return originalGetFill(blockId);
-      } catch {
-        return 0;
-      }
-    };
+    if (!(cesdk.engine.block as any).__wargativeGetFillGuarded) {
+      const originalGetFill = cesdk.engine.block.getFill.bind(cesdk.engine.block);
+      cesdk.engine.block.getFill = (blockId: number) => {
+        try {
+          if (!cesdk.engine.block.isValid(blockId)) {
+            console.warn('[Wargative Safety Net] Prevented getFill query on invalid/destroyed block ID:', blockId);
+            return 0;
+          }
+          return originalGetFill(blockId);
+        } catch (err) {
+          console.warn('[Wargative Safety Net] Handled error in getFill for block ID:', blockId, err);
+          return 0;
+        }
+      };
+      (cesdk.engine.block as any).__wargativeGetFillGuarded = true;
+    }
   } catch (e) {
     console.warn('[Wargative Templates] Failed to install getFill guard:', e);
   }

@@ -36,6 +36,28 @@ CreativeEditorSDK.create('#cesdk_container', config)
     (window as any).cesdk = cesdk;
     await initDesignEditor(cesdk);
 
+    // Diagnostic Defensive Safety Net: Prevent CE.SDK UI inspector from crashing on invalid blocks during scene transitions
+    try {
+      if (!(cesdk.engine.block as any).__wargativeGetFillGuarded) {
+        const originalGetFill = cesdk.engine.block.getFill.bind(cesdk.engine.block);
+        cesdk.engine.block.getFill = (blockId: number) => {
+          try {
+            if (!cesdk.engine.block.isValid(blockId)) {
+              console.warn('[Wargative Safety Net] Prevented getFill query on invalid/destroyed block ID:', blockId);
+              return 0;
+            }
+            return originalGetFill(blockId);
+          } catch (err) {
+            console.warn('[Wargative Safety Net] Handled error in getFill for block ID:', blockId, err);
+            return 0;
+          }
+        };
+        (cesdk.engine.block as any).__wargativeGetFillGuarded = true;
+      }
+    } catch (e) {
+      console.warn('[Wargative] Failed to install getFill safety net:', e);
+    }
+
     // ============================================================================
     // Dynamic Scene Loading & Project Identity Handling
     // ============================================================================
@@ -629,13 +651,51 @@ CreativeEditorSDK.create('#cesdk_container', config)
             await cesdk.engine.scene.loadFromArchiveURL(uri);
             console.log('[Wargative] Step 1b: Finished loadFromArchiveURL for', uri);
           }
+
+          // Deselect any transient template blocks before loading target scene
+          try {
+            const staleSelected = cesdk.engine.block.findAllSelected();
+            for (const b of staleSelected) {
+              cesdk.engine.block.setSelected(b, false);
+            }
+          } catch (e) {}
         }
 
         console.log('[Wargative] Step 2: Calling loadFromString with length', savedScene.length);
         await cesdk.engine.scene.loadFromString(savedScene);
         console.log('[Wargative] Step 3: Finished loadFromString, scene id is', cesdk.engine.scene.get());
 
-        console.log('[Wargative] Step 4: Running zoom.toPage first');
+        // Retrieve and validate primary page from newly restored scene
+        const restoredPages = cesdk.engine.scene.getPages();
+        if (!restoredPages || restoredPages.length === 0) {
+          throw new Error('Restored scene contains no pages');
+        }
+        const primaryPage = restoredPages[0];
+        if (!cesdk.engine.block.isValid(primaryPage)) {
+          throw new Error(`Primary page ${primaryPage} is invalid in restored scene`);
+        }
+
+        // Clean any lingering stale block selection
+        try {
+          const staleSelected = cesdk.engine.block.findAllSelected();
+          for (const b of staleSelected) {
+            cesdk.engine.block.setSelected(b, false);
+          }
+        } catch (e) {}
+
+        // Officially synchronize selection & active page to the valid primary page
+        cesdk.engine.block.select(primaryPage);
+
+        // Allow microtasks & CE.SDK / MobX scene transition events (onActiveChanged) to settle
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        // Verify current page state before camera navigation
+        const currentPage = cesdk.engine.scene.getCurrentPage() ?? primaryPage;
+        if (!cesdk.engine.block.isValid(currentPage)) {
+          throw new Error('Current page is still invalid after scene transition');
+        }
+
+        console.log('[Wargative] Step 4: Running zoom.toPage first on verified valid page', primaryPage);
         await cesdk.actions.run('zoom.toPage', { page: 'first' });
         console.log('[Wargative] Step 5: Finished zoom.toPage');
 
