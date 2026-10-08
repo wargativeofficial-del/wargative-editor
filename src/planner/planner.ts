@@ -1133,12 +1133,15 @@ class WargativeContentPlanner {
     if (urlParams.get('meta_success') === 'true') {
       const platform = urlParams.get('platform') || 'Meta';
       const account = urlParams.get('account') || '';
-      const platformLabel = platform === 'instagram' ? 'Instagram Business' : 'Facebook Page';
+      let platformLabel = 'Meta';
+      if (platform === 'instagram') platformLabel = 'Instagram Business';
+      else if (platform === 'facebook') platformLabel = 'Facebook Page';
+      else if (platform === 'youtube') platformLabel = 'YouTube Channel';
       this.showToast(`🎉 Sukses! Akun ${platformLabel} (${account}) berhasil diotorisasi secara resmi! 🚀`, 7000);
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (urlParams.has('meta_error')) {
-      const errorMsg = urlParams.get('meta_error') || 'Otorisasi Meta gagal.';
-      this.showToast(`⚠️ Gagal Otorisasi Meta: ${errorMsg}`, 8000);
+      const errorMsg = urlParams.get('meta_error') || 'Otorisasi gagal.';
+      this.showToast(`⚠️ Gagal Otorisasi: ${errorMsg}`, 8000);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }
@@ -1371,6 +1374,43 @@ class WargativeContentPlanner {
     }
   }
 
+  private async startYouTubeOAuth() {
+    const user = await getCurrentUser();
+    if (!user) {
+      authUI.openModal('login');
+      this.showToast('Silakan masuk ke akun Wargative Anda terlebih dahulu.');
+      return;
+    }
+
+    this.showToast('Menghubungkan ke otorisasi resmi YouTube Channel (Google)...');
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/auth/youtube/login', { headers });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any = null;
+      let rawText = '';
+
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        rawText = await res.text().catch(() => '');
+      }
+
+      if (res.ok && data?.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        const detailMsg = data?.message || data?.error || rawText || res.statusText || 'Server error';
+        console.error(`[YouTube OAuth] Error HTTP ${res.status}:`, detailMsg);
+        this.showToast(`⚠️ Gagal memulai YouTube OAuth (HTTP ${res.status}): ${detailMsg}`, 7000);
+      }
+    } catch (err: any) {
+      console.error('[YouTube OAuth] Network exception:', err);
+      this.showToast(`⚠️ Error jaringan: ${err?.message || 'Gagal menghubungi server'}`, 7000);
+    }
+  }
+
   private async disconnectSpecificConnection(connectionId: string, accountName: string) {
     if (!confirm(`Apakah Anda yakin ingin memutuskan koneksi akun ${accountName}?`)) return;
 
@@ -1530,6 +1570,8 @@ class WargativeContentPlanner {
           this.startInstagramOAuth();
         } else if (channel.id === 'facebook') {
           this.startMetaOAuth('facebook');
+        } else if (channel.id === 'youtube') {
+          this.startYouTubeOAuth();
         } else {
           this.showToast(`Integrasi resmi untuk ${channel.name} akan tersedia pada fase berikutnya.`);
         }
